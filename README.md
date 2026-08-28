@@ -2,7 +2,7 @@
 
 DriftDoctor is an evidence-first agentic workflow for diagnosing and repairing dbt pipeline regressions caused by schema, contract, and semantic drift.
 
-> **Hackathon status:** Phase 2 - executable synthetic benchmark. The 12-case benchmark and external evaluator now exist; no baseline or DriftDoctor performance claim has been made yet.
+> **Hackathon status:** Phase 2 - executable synthetic benchmark complete. The 12-case benchmark and external evaluator are green in CI; no baseline or DriftDoctor performance claim has been made yet.
 
 ## The user and bottleneck
 
@@ -69,7 +69,7 @@ See:
 ## Phase plan
 
 1. **Evaluation foundation** - lock problem, baseline, metric, cases, oracle rules. **Complete.**
-2. **Synthetic benchmark** - implement the 12 dbt + DuckDB incident fixtures and evaluator. **Complete pending CI confirmation.**
+2. **Synthetic benchmark** - implement the 12 dbt + DuckDB incident fixtures and evaluator. **Complete.**
 3. **Baseline measurement** - run the frozen baseline and preserve every trajectory/result.
 4. **DriftDoctor workflow** - evidence collection, diagnosis, patch generation, and deterministic verification.
 5. **Experiments** - measure each meaningful workflow change against the same cases.
