@@ -1,12 +1,12 @@
 # Improvement Changelog
 
-This file is the evidence-linked evolution log required for the hackathon submission. Results are deliberately left blank until they are measured on the fixed benchmark.
+This file is the evidence-linked evolution log required for the hackathon submission. Scored performance results remain blank until Phase 3 runs the frozen baseline.
 
 | Stage | What we tried and why | Evidence | Decision / learning |
 |---|---|---|---|
 | Baseline definition | Freeze one general-purpose coding-agent prompt before implementing DriftDoctor so the comparison cannot be retrofitted to favor the final workflow. | `baseline/PROMPT.md`; benchmark protocol defined before any scored run. Baseline VRR: **not run yet**. | Keep prompt frozen for v0.1 and run all 12 cases in Phase 3. |
-| Iteration 1 — evaluation-first foundation | Define the primary metric, 12 incidents, deterministic oracle requirements, fairness rules, and one challenging multi-fault case before agent implementation. | `docs/EVALUATION.md`, `benchmark/cases.json`, `scripts/validate_benchmark.py`. Agent VRR: **not run yet**. | Keep. It prevents moving the goalposts and makes every later change measurable. |
-| Iteration 2 | Not started. | Not measured. | Pending Phase 4/5 experiment. |
+| Iteration 1 - evaluation-first foundation | Define the primary metric, 12 incidents, deterministic oracle requirements, fairness rules, and one challenging multi-fault case before agent implementation. | `docs/EVALUATION.md`, `benchmark/cases.json`, `scripts/validate_benchmark.py`. Agent VRR: **not run yet**. | Keep. It prevents moving the goalposts and makes every later change measurable. |
+| Iteration 2 - executable benchmark | Materialize each frozen incident as a synthetic dbt + DuckDB workspace and grade repairs with an external deterministic evaluator. Add reference repairs solely to prove every case is solvable and CI to prove each fixture starts broken. | `benchmark/fixture_factory.py`, `benchmark/oracles.py`, `benchmark/reference_repairs.py`, `scripts/smoke_benchmark.py`, GitHub Actions smoke run. Scored VRR: **not run yet**. | Keep. The evaluator is now independent from the future agent and can catch semantic failures even when `dbt build` is green. |
 | Iteration 3 | Not started. | Not measured. | Pending Phase 4/5 experiment. |
 | Final | Not started. | Not measured. | Pending final evaluation. |
 
