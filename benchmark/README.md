@@ -1,80 +1,99 @@
 # Benchmark
 
-The benchmark is the source of truth for DriftDoctor's hackathon evaluation. It is intentionally defined before the solution is implemented.
+The benchmark is the source of truth for DriftDoctor's hackathon evaluation. Its 12 incident contracts were frozen before the agent implementation.
 
-## Contract
+## Executable Phase 2 design
 
-[`cases.json`](cases.json) contains 12 fixed incidents. Each case has:
-
-- a stable ID;
-- a user-facing incident statement;
-- a category and difficulty;
-- a hidden implementation fault description;
-- a canonical `root_cause_class`;
-- deterministic oracle requirements.
-
-During Phase 2, every case will become a self-contained dbt + DuckDB fixture under a case directory. The fixture implementation may add files needed to reproduce the fault, but it must not weaken or change the oracle requirements in `cases.json` merely to improve measured performance.
-
-## Planned Phase 2 case layout
+Phase 2 materializes each incident as a disposable dbt project backed by a local DuckDB file. The committed repository stores a deterministic fixture factory instead of twelve copied project trees so shared project configuration cannot drift between cases.
 
 ```text
 benchmark/
-  cases.json
-  fixtures/
-    DD-001/
-      project/          # broken starting dbt project
-      oracle/           # external deterministic checks
-      expected/         # frozen expected values/config
-    ...
-  results/
-    baseline/
-    driftdoctor/
+  cases.json                 # frozen public contract
+  fixture_factory.py         # broken project + synthetic input generator
+  oracles.py                 # external deterministic grader
+  reference_repairs.py       # evaluator-only gold repair for smoke tests
+scripts/
+  materialize_case.py
+  evaluate_case.py
+  smoke_benchmark.py
 ```
 
-`results/` will contain raw machine-readable run records. Aggregate metrics must be recomputable from those records.
+The **agent workspace contains only the materialized case project**. `oracles.py`, `reference_repairs.py`, `cases.json` ground truth fields, and the parent repository must not be mounted into the agent sandbox during a scored run.
 
-## Success rule
+## Install
 
-A case is solved only if **all** of its oracle checks pass after the agent stops. Diagnosis quality is tracked separately and cannot convert a failed repair into a success.
+Python 3.10+ is required by `dbt-duckdb`; CI uses Python 3.13.
 
-## Why local dbt + DuckDB
+```bash
+python -m pip install -r requirements.txt
+```
 
-The evaluation needs to be:
+The benchmark pins:
 
-- inexpensive;
-- reproducible from a clean environment;
-- safe to run repeatedly;
-- deterministic enough for baseline/final comparison;
-- rich enough to expose real schema, dependency, data-quality, and SQL-semantic failures.
+- `dbt-core==1.11.14`
+- `dbt-duckdb==1.11.0`
+- `duckdb==1.5.5`
 
-A local DuckDB-backed dbt project satisfies those constraints without requiring warehouse credentials or private data.
+## Materialize one broken case
 
-## Deterministic evidence surfaces
+```bash
+python scripts/materialize_case.py DD-005 --output .work/DD-005 --force
+```
 
-Phase 2 should prefer evidence that can be independently checked:
+The generated directory is a real dbt project with:
 
-- dbt command exit codes and logs;
-- data-test results;
-- unit-test results where appropriate;
-- generated dbt artifacts such as `manifest.json` and `run_results.json`;
-- custom SQL assertions against the local DuckDB file;
-- exact git/working-tree diff;
-- fixture-specific file assertions.
+- `dbt_project.yml`
+- a local `profiles.yml`
+- synthetic raw input under `input/`
+- `benchmark.duckdb` with those inputs loaded into the `raw` schema
+- broken models/macros/tests needed for the incident
+- a `.driftdoctor-case` marker used by the external evaluator
 
-## Benchmark integrity rules
+You can then work only inside `.work/DD-005`.
 
-1. The same starting fixture is used for baseline and DriftDoctor.
-2. The same external oracle grades both systems.
-3. The agent never receives `fault` or `root_cause_class` fields during a scored run.
-4. Oracle code is not exposed as editable task code during a scored run.
-5. Every failed run is retained.
-6. A case change after Phase 1 requires a changelog entry explaining why; original results may not be compared as though the benchmark were unchanged.
-7. DD-012 is the required challenging case and must be discussed independently in the final report.
+## Evaluate one workspace
 
-## Validate the contract
+The evaluator runs outside the workspace:
+
+```bash
+python scripts/evaluate_case.py DD-005 \
+  --workdir .work/DD-005 \
+  --json results/DD-005.json
+```
+
+A case passes only when **every** check passes. `dbt build` is necessary but not sufficient: semantic incidents such as timezone drift and refund-sign regressions are also checked with deterministic DuckDB assertions.
+
+## Smoke the entire benchmark
 
 ```bash
 python scripts/validate_benchmark.py
+python scripts/smoke_benchmark.py
 ```
 
-This uses only the Python standard library.
+For all 12 cases the smoke test proves two properties:
+
+1. the frozen broken fixture does **not** pass its oracle;
+2. an evaluator-only reference repair **does** pass the exact same oracle.
+
+That catches impossible cases, accidentally healthy fixtures, and broken evaluator logic before any agent is scored.
+
+## Evidence surfaces
+
+The evaluator intentionally relies on independent evidence:
+
+- `dbt build` exit status and output;
+- dbt data tests for structural/data-contract assertions;
+- generated dbt artifacts in the materialized project's `target/` directory;
+- direct DuckDB SQL assertions for semantic business rules;
+- exact file/config assertions for dependency and validation-contract cases.
+
+## Benchmark integrity rules
+
+1. Baseline and DriftDoctor start from separately materialized copies of the same case.
+2. The same external oracle grades both systems.
+3. The agent receives the public incident text, not the `fault`, `root_cause_class`, oracle implementation, or reference repair.
+4. The evaluator directory is outside the editable agent workspace.
+5. Every failed run is retained.
+6. Case IDs and oracle requirements in `cases.json` remain frozen for benchmark v0.1.0.
+7. DD-012 is the required challenging multi-fault case and is reported separately.
+8. No result is a success merely because SQL compiles or the agent claims completion.
