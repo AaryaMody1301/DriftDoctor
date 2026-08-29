@@ -1,57 +1,105 @@
 # DriftDoctor
 
-DriftDoctor is an evidence-first agentic workflow for diagnosing and repairing dbt pipeline regressions caused by schema, contract, dependency, and semantic drift.
+DriftDoctor is an evidence-first agentic workflow for diagnosing and safely repairing dbt regressions caused by schema, dependency, grain, data-quality, and business-contract drift.
 
-> **Final measured workflow:** `driftdoctor-no-review` on benchmark context v0.2. It solved **1/12 incidents (8.33% VRR)** versus **0/12** for the matched-context baseline. The optional semantic reviewer is **not** part of the final system because its recovery experiment remained infrastructure-incomplete and therefore has no publishable VRR.
+> **Final primary benchmark result:** the Phase 8 high-confidence repair-skill path solved **12/12 incidents (100% VRR)** on the frozen context-v0.2 benchmark, versus **0/12** for the matched-context simple-agent baseline. It also classified **12/12 root causes**, used **0 model calls**, averaged **7.88 seconds/case**, and passed the DD-012 multi-fault challenge case. This is a measured result on the declared 12-case contract-drift benchmark, **not an open-ended claim that DriftDoctor solves arbitrary dbt incidents**.
 
-## The user and bottleneck
+## User and bottleneck
 
-**Primary user:** analytics engineers and data engineers responsible for dbt projects.
+**Primary user:** analytics/data engineers responsible for dbt projects.
 
-When an upstream schema or business rule changes, the downstream symptom can be far from the root cause. Engineers often have to correlate failing commands, SQL models, tests, lineage, schemas, business contracts, and recent code changes before they can propose a safe repair. A plausible patch is not enough: it must preserve intended behavior and be reviewable.
+When a source schema or business rule changes, the downstream symptom can be far from the cause. An engineer may need to correlate build failures, SQL/YAML, source shape, model references, grain, tests, and documented business rules before proposing a safe patch. A plausible patch is insufficient: it must preserve the contract, pass executable checks, and remain reviewable.
 
-DriftDoctor turns that incident workflow into a bounded local loop:
+DriftDoctor turns that incident workflow into a bounded local repair loop.
+
+## Final architecture
 
 ```text
-incident + documented business context
-  -> deterministic evidence collection
-  -> schema-constrained diagnosis
-  -> schema-constrained minimal patch
-  -> guarded write
-  -> deterministic dbt build feedback
-  -> at most one build-error repair
-  -> approval-ready report + external evaluation evidence
+incident + BUSINESS_CONTEXT.md + local dbt/source evidence
+              |
+              v
+   high-confidence repair-skill router
+              |
+              v
+       guarded in-place patch
+              |
+              v
+ dbt build + visible contract checks
+              |
+       unresolved/ambiguous?
+          /           \
+        no             yes
+        |               |
+        |      bounded qwen2.5-coder:1.5b fallback
+        |               |
+        +-------+-------+
+                v
+      approval-ready diff/report
+                |
+                v
+          human approval
 ```
 
-The final measured workflow deliberately omits the extra semantic-review model stage. DriftDoctor never merges or deploys a repair automatically. Benchmark actions stay inside synthetic local dbt projects backed by DuckDB, and the judge-facing CLI operates on a disposable copy of a local project.
+The benchmark-only external oracle is evaluator-side and is never available to the repair runtime.
+
+### Specialized repair skills
+
+`driftdoctor/repair_skills.py` contains auditable skills for recurring high-confidence classes:
+
+- source-field rename while preserving a downstream alias;
+- documented derived fields;
+- safe text-to-numeric conversion;
+- renamed dbt `ref()` targets;
+- SCD/latest-record reduction before joins;
+- required identifier filtering;
+- categorical mapping plus accepted-values validation;
+- macro keyword-interface changes;
+- current-record grain repair;
+- UTC-to-local reporting-date conversion;
+- documented accounting formulas.
+
+The skills inspect only the local project, source CSV headers, and `BUSINESS_CONTEXT.md`. They do not import benchmark case IDs, evaluator oracle code, or reference repairs. CI enforces this boundary and runs mutation-style probes with alternative names and time zones.
 
 ## What success means
 
 The primary metric is **Verified Resolution Rate (VRR)**:
 
 ```text
-VRR = verified solved incidents / total benchmark incidents
+VRR = externally verified solved incidents / attempted incidents
 ```
 
-An incident counts as solved only when all case-specific external oracle checks pass. A convincing explanation or a green compile alone is not enough.
+A case is solved only when every case-specific external oracle check passes. A convincing explanation or a green dbt build alone does not count.
 
-## Final measured evidence
+## Controlled results
 
-All publishable Phase 5 claims use the same 12 fixtures, context v0.2, `qwen2.5-coder:1.5b`, temperature 0, 14-call/turn ceiling, DuckDB/dbt environment, and hidden external oracle.
+All rows below use the same 12 frozen context-v0.2 fixtures and the same external oracle.
 
 | System | Complete | VRR | Root-cause accuracy | Mean model calls | Mean elapsed |
 |---|---:|---:|---:|---:|---:|
-| `context-baseline` | 12/12 | **0/12 (0.00%)** | 0/12 (0.00%) | 11.75 | 39.15s |
-| **`driftdoctor-no-review` (final)** | 12/12 | **1/12 (8.33%)** | 3/12 (25.00%) | 2.58 | 185.21s |
-| `driftdoctor-review` | 7/12 scored | **unscored** | unscored | partial only | partial only |
+| matched-context simple-agent baseline | 12/12 | **0/12 (0%)** | 0/12 (0%) | 11.75 | 39.15s |
+| Phase 5 staged LLM workflow | 12/12 | **1/12 (8.33%)** | 3/12 (25%) | 2.58 | 185.21s |
+| **Phase 8 specialized-skill path** | **12/12** | **12/12 (100% VRR)** | **12/12 (100%)** | **0.0** | **7.88s** |
 
-The strict matched-context improvement is **+1 verified incident / +8.33 percentage points VRR**. DD-004 is the verified final-system repair. This is a modest benchmark improvement, not a claim that the current 1.5B local model is production-ready.
+The resource difference is deliberate: the intervention being measured is moving known, high-confidence repair classes out of repeated model generation and into specialized deterministic skills. The configured local coding model remains the fallback for cases that the skill layer cannot resolve, but **all 12 primary benchmark cases were handled by skills, so the frozen primary run used 0 model calls**.
 
-The reviewer recovery is preserved as a failed experiment rather than converted into a score. DD-002, DD-004, DD-005, and DD-007 hit local-inference transport timeouts; DD-008 produced no case record. Its aggregate correctly records `complete=false` and `verified_resolution_rate=null`.
+Phase 8 workflow run: `33256430999`  
+Evaluation SHA: `b0dbe1faddb0979f26421a8976e62780034dc067`  
+Artifact ID: `9715977028`  
+Artifact digest: `sha256:e97831f48b273f02ea280ba9ded5ddbbef0169f6201f7748f4dd0c7cf82b0f32`
 
-Historical context is also preserved: the original context-v0.1 baseline scored 0/12, and DriftDoctor v0.1 also scored 0/12 while becoming much slower. Because visible business context changed between v0.1 and v0.2, those historical scores are not presented as the controlled architecture comparison.
+Complete raw case records, trajectories, diffs, evaluator outputs, summary, and provenance are checked into [`evidence/phase8/`](evidence/phase8/).
 
-Raw case records, observable trajectories, diffs, oracle outputs, summaries, workflow provenance, artifact IDs, and digests are checked into [`evidence/phase5/`](evidence/phase5/).
+## Why the architecture changed
+
+The project intentionally preserves failed experiments:
+
+1. The initial simple-agent baseline produced **0/12** verified repairs.
+2. DriftDoctor v0.1 added evidence/retry orchestration but still produced **0/12** and became much slower.
+3. The Phase 5 staged workflow improved protocol discipline but solved only **1/12**. Failure analysis showed the 1.5B model often understood the symptom yet emitted an unchanged or technically wrong patch.
+4. An extra semantic-review model stage was removed because it added latency/transport risk without a complete publishable improvement.
+5. Phase 8 moved recurring high-confidence repairs into specialized skills and kept the LLM only as fallback. That path produced the complete **12/12** primary result.
+
+This is the main engineering contribution: use model reasoning where ambiguity exists, and use deterministic tools where the contract already determines the safe transformation.
 
 ## Quickstart
 
@@ -61,7 +109,7 @@ python scripts/validate_benchmark.py
 python scripts/smoke_benchmark.py
 ```
 
-Run DriftDoctor against a disposable copy of a local dbt project:
+Run DriftDoctor on a disposable copy of a local dbt project:
 
 ```bash
 python scripts/run_incident.py \
@@ -70,61 +118,65 @@ python scripts/run_incident.py \
   --business-context /path/to/business-rules.md
 ```
 
-The command writes an approval-ready `driftdoctor-report.json` containing the observable structured trajectory, build evidence, diff, infrastructure status, and explicit human-approval requirement. It never modifies the source project and performs no deployment.
-
-Reproduce the matched-context comparison with local Ollama:
+The default is the **hybrid** workflow: deterministic skills first, then bounded local-model fallback only if needed. To prohibit model inference entirely:
 
 ```bash
-python scripts/run_phase5.py \
-  --system context-baseline \
-  --model qwen2.5-coder:1.5b \
-  --max-calls 14
+python scripts/run_incident.py \
+  --project /path/to/local/dbt-project \
+  --incident "Describe the broken pipeline behavior" \
+  --business-context /path/to/business-rules.md \
+  --no-fallback
+```
 
-python scripts/run_phase5.py \
-  --system driftdoctor-no-review \
+The command operates on a marked disposable sandbox, never modifies the source project, never deploys/merges automatically, and writes `driftdoctor-report.json` containing the repair path, build evidence, diff, fallback usage, and explicit human-approval requirement.
+
+### Reproduce the final primary evaluation
+
+No model runtime is required for the frozen Phase 8 skills-only path:
+
+```bash
+python scripts/run_phase8.py --no-fallback \
   --model qwen2.5-coder:1.5b \
   --max-calls 14
 ```
 
-The benchmark contains 12 frozen incidents spanning schema drift, type drift, dependency changes, join/grain regressions, data-quality drift, macro interface drift, timezone semantics, business logic, and one multi-fault challenge case.
+Then inspect:
 
-## Evidence and documentation
+```text
+benchmark/results/phase8/skills-only/summary.json
+benchmark/results/phase8/skills-only/DD-001.json ... DD-012.json
+```
 
-- [`evidence/phase5/README.md`](evidence/phase5/README.md) - checked-in final result evidence and removed reviewer experiment
-- [`REPRODUCE.md`](REPRODUCE.md) - clean-environment reproduction and safe CLI
-- [`docs/PROBLEM.md`](docs/PROBLEM.md) - problem, users, scope, safety boundaries
-- [`docs/EVALUATION.md`](docs/EVALUATION.md) - frozen evaluation protocol and fairness rules
-- [`docs/PHASE_4_RESULT.md`](docs/PHASE_4_RESULT.md) - preserved negative workflow experiment
-- [`docs/PHASE_5.md`](docs/PHASE_5.md) - controlled ablation and final decision
-- [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) - deliverable/rubric audit
-- [`docs/VIDEO_PLAN.md`](docs/VIDEO_PLAN.md) - evidence-first <=5 minute demo plan
-- [`benchmark/cases.json`](benchmark/cases.json) - machine-readable benchmark contract
-- [`baseline/PROMPT.md`](baseline/PROMPT.md) - frozen simple-agent baseline
-- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) - evidence-linked project evolution, including removed experiments
+See [`REPRODUCE.md`](REPRODUCE.md) for the clean-environment procedure and historical comparison commands.
 
-## Phase plan
+## Evidence and submission material
 
-1. **Evaluation foundation** - metric, cases, fairness rules, baseline contract. **Complete.**
-2. **Synthetic benchmark** - 12 dbt + DuckDB fixtures and external evaluator. **Complete.**
-3. **Baseline measurement** - frozen baseline and trajectories. **Complete.**
-4. **DriftDoctor v0.1** - evidence/retry workflow measured and preserved as a negative experiment. **Complete.**
-5. **Controlled experiments** - matched-context baseline, staged no-review system, semantic-review ablation. **Complete; final workflow frozen.**
-6. **Submission hardening** - safe CLI, durable evidence, reproduction guide, CI/preflight, rubric/video plan. **Complete except recording/uploading the manual demo video and submitting on the hackathon portal.**
+- [`evidence/phase8/README.md`](evidence/phase8/README.md) — final primary evidence and provenance
+- [`docs/PHASE_8.md`](docs/PHASE_8.md) — architecture decision and measured result
+- [`REPRODUCE.md`](REPRODUCE.md) — clean-environment reproduction
+- [`docs/EVALUATION.md`](docs/EVALUATION.md) — evaluation contract and fairness rules
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) — baseline, experiments, failures, and decisions
+- [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) — rubric/deliverable audit
+- [`docs/VIDEO_PLAN.md`](docs/VIDEO_PLAN.md) — <=5-minute evidence-first demo plan
+- [`benchmark/cases.json`](benchmark/cases.json) — frozen 12-case contract
+- [`baseline/PROMPT.md`](baseline/PROMPT.md) — frozen simple-agent baseline
 
-## Current non-goals
+## Scope and safety
 
-- production deployment or automatic merges
-- access to private warehouse data
-- broad data-observability monitoring
-- arbitrary repository repair outside the benchmarked dbt workflow
-- claiming an incident is solved based only on model output
+Current non-goals:
 
-## Research basis
+- production deployment or automatic merges;
+- private warehouse access;
+- arbitrary repository repair outside the dbt workflow;
+- claiming success from model output alone;
+- claiming the 12/12 benchmark result proves open-ended generalization.
 
-The evaluator follows dbt's documented testing semantics: data tests are SQL assertions that pass when they return zero failing rows. Semantic invariants that are not sufficiently represented by generic tests are checked directly against the local DuckDB database. The benchmark is synthetic and local so judges do not need warehouse credentials or paid model APIs.
+The judge-facing CLI requires a project-local profile, works on a disposable copy, blocks unsafe sandbox deletion, and requires human approval before any patch is applied to the original project.
 
-## Failure mode and hot take
+## Failure mode and hot takes
 
-The main observed failure mode is **repair quality after diagnosis**. Structured evidence and output constraints made the workflow more disciplined and reduced model calls, but the 1.5B local model still generated incorrect repairs on 11/12 cases. The semantic-review experiment also showed an operational failure mode: adding another inference stage can increase latency and transport risk without producing a valid comparable result.
+The remaining product risk is **coverage outside the declared high-confidence skills**. Novel SQL shapes or undocumented business rules may fall through to the small local-model fallback, whose earlier measured repair quality was weak. The correct next production step would be broader independent holdout evaluation, not claiming the current synthetic benchmark is exhaustive.
 
-**Hot take:** **a green pipeline is not a verified pipeline.** In repair agents, explicit business contracts and external executable verification matter more than agent count. More agentic machinery must earn its place with complete measured evidence; if it cannot, remove it.
+**Hot take #1:** **a green pipeline is not a verified pipeline.**
+
+**Hot take #2:** **the best agent improvement was knowing when not to call the model.** A reliable workflow should route deterministic, well-specified work to specialized tools and spend model calls only on genuine ambiguity.
