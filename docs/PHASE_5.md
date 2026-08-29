@@ -2,7 +2,7 @@
 
 Phase 5 began from a measured negative result: both the original baseline and DriftDoctor v0.1 achieved 0/12 Verified Resolution Rate (VRR), while DriftDoctor v0.1 was substantially slower despite better tool/protocol discipline.
 
-Phase 5 is now complete. The final measured workflow is **`driftdoctor-no-review`**.
+Phase 5 is complete. Its **historical Phase 5 selection** was `driftdoctor-no-review`; it is retained as an intermediate experiment, not the repository's final Phase 8 product.
 
 ## Why the evaluation context is versioned
 
@@ -31,9 +31,9 @@ The Phase 3-style open-ended baseline was rerun with legitimate business context
 
 Evidence: `evidence/phase5/context-baseline/`.
 
-## B - driftdoctor-no-review — final workflow
+## B - driftdoctor-no-review — Phase 5 retained arm
 
-The retained workflow is:
+The retained Phase 5 workflow was:
 
 1. deterministic dbt/artifact/source evidence collection;
 2. schema-constrained diagnosis;
@@ -44,7 +44,7 @@ The retained workflow is:
 
 **Complete result:** **1/12 VRR (8.33%)**, 3/12 root-cause accuracy (25%), 2.58 mean model calls, 185.21s mean elapsed, zero infrastructure errors.
 
-DD-004 was the verified repair. The final system improved the matched-context primary metric by **+1 solved incident / +8.33 percentage points VRR**.
+DD-004 was the verified repair. This intermediate system improved the matched-context primary metric by **+1 solved incident / +8.33 percentage points VRR**.
 
 Evidence: `evidence/phase5/driftdoctor-no-review/`.
 
@@ -62,11 +62,11 @@ The final three-shard recovery did **not** produce a valid aggregate:
 
 One scored reviewer case, DD-006, passed, but a partial pass count is not a VRR. The experiment is preserved under `evidence/phase5/driftdoctor-review-incomplete/` and is explicitly excluded from performance claims.
 
-The semantic reviewer is therefore **removed from the final workflow**. This is not a claim that its true VRR was lower; it is a decision that a component unable to produce complete comparable evidence on the chosen zero-budget runtime did not earn submission-critical complexity.
+The semantic reviewer was therefore removed. This is not a claim that its true VRR was lower; it is a decision that a component unable to produce complete comparable evidence on the chosen zero-budget runtime did not earn submission-critical complexity.
 
 ## Patch guardrails retained
 
-The final staged workflow rejects:
+The staged Phase 5 workflow rejects:
 
 - writes outside `models/` or `macros/`;
 - implausibly short replacements;
@@ -76,13 +76,15 @@ The final staged workflow rejects:
 
 These are general execution-safety checks and do not encode case answers.
 
-## Selection rule and decision
+## Selection rule and Phase 5 decision
 
-The predeclared rule was: highest publishable VRR; for ties, prefer fewer model calls and then lower mean elapsed time. A performance claim additionally requires a complete 12/12 aggregate with no infrastructure errors.
+The predeclared Phase 5 rule was: highest publishable VRR; for ties, prefer fewer model calls and then lower mean elapsed time. A performance claim additionally requires a complete 12/12 aggregate with no infrastructure errors.
 
-`driftdoctor-no-review` is selected because it is the only complete Phase 5 DriftDoctor arm and has the highest publishable matched-context VRR: **1/12 versus 0/12 for the matched baseline**. The reviewer arm is unscored, not assigned an artificial zero.
+`driftdoctor-no-review` was selected within Phase 5 because it was the only complete DriftDoctor arm and had the highest publishable matched-context VRR: **1/12 versus 0/12 for the matched baseline**. The reviewer arm is unscored, not assigned an artificial zero.
 
-## Reproduce
+Later Phase 8 failure analysis showed that the remaining bottleneck was patch generation. The final repository architecture therefore supersedes this arm with high-confidence specialized repair skills plus a bounded model fallback. See `docs/PHASE_8.md` and `evidence/phase8/`.
+
+## Reproduce historical Phase 5 results
 
 ```bash
 python scripts/run_phase5.py --system context-baseline --model qwen2.5-coder:1.5b --max-calls 14

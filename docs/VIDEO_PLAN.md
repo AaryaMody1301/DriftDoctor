@@ -1,101 +1,114 @@
 # Five-minute submission video plan
 
-Target length: **4:30–4:55**. Use one continuous evidence-first story. Do not spend time listing technology logos.
+Target length: **4:30–4:55**. Tell one evidence-first story; do not spend time listing technology logos.
 
-## 0:00–0:35 — Problem and user
+## 0:00–0:30 — Problem and user
 
-Show a broken dbt project and explain:
+Show a broken dbt project and say:
 
-- analytics engineers often have to correlate source changes, SQL, tests, dbt artifacts, and business rules before they can safely repair a pipeline;
+- analytics/data engineers must correlate source changes, SQL, tests, grain, and business rules before safely repairing a pipeline;
 - a compiling project can still be semantically wrong;
-- DriftDoctor's goal is an evidence-backed, locally verified patch that remains under human control.
+- DriftDoctor produces an evidence-backed patch in a disposable local workspace and leaves the final decision to a human.
 
-Briefly show DD-010 or DD-011 as the motivating silent-regression example: Phase 2 demonstrated that `dbt build` can be green while the external semantic oracle still fails.
+Use the project hot take immediately: **a green pipeline is not a verified pipeline.**
 
-## 0:35–1:05 — Baseline and metric
+## 0:30–1:00 — Baseline and evaluation contract
 
-Show the benchmark/evidence summary:
+Show `benchmark/cases.json` / `docs/EVALUATION.md`:
 
-- 12 synthetic incidents, including one multi-fault challenge case;
-- same `qwen2.5-coder:1.5b` model/environment for the controlled Phase 5 comparison;
+- 12 frozen synthetic dbt + DuckDB incidents;
+- one multi-fault challenge case, DD-012;
 - one primary metric: **Verified Resolution Rate (VRR)**;
-- a case passes only when the external deterministic oracle succeeds;
-- evaluator-only reference repairs prove all cases are solvable.
+- a case counts only when every external oracle check passes;
+- the matched-context simple-agent baseline scored **0/12**.
 
-## 1:05–2:25 — End-to-end verified repair: DD-004
+Mention that evaluator-only reference repairs prove each case is solvable and are never placed in the repair workspace.
 
-Use **DD-004**, the case the final selected workflow actually solves.
+## 1:00–2:15 — End-to-end challenge repair: DD-012
+
+Use **DD-012** because it exercises two independent faults and the final hybrid entry point passes it.
 
 Screen sequence:
 
-1. materialized broken workspace and `BUSINESS_CONTEXT.md`;
-2. broken `mart_orders.sql` references the old `stg_orders` model;
-3. deterministic evidence collector output;
-4. schema-constrained diagnosis;
-5. structured patch changing the dependency to `stg_orders_v2` while preserving mart columns;
-6. guarded write;
-7. successful `dbt build`;
-8. external oracle PASS for build, output contract, and absence of stale ref;
-9. `evidence/phase5/driftdoctor-no-review/DD-004.json` showing the observable trajectory/diff/evidence.
+1. materialize DD-012 and show `BUSINESS_CONTEXT.md`;
+2. show the source headers: the name field changed and revenue is now text;
+3. show the broken staging SQL still referencing the old name and multiplying text by `1.0`;
+4. run the final hybrid workflow;
+5. show the router selecting `source_alias` + `safe_numeric`;
+6. show the guarded in-place diff: new source name aliased back to the stable public contract and `TRY_CAST(... AS DECIMAL(18,2))` for safe numeric conversion;
+7. show successful `dbt build`;
+8. show the external oracle PASS for all DD-012 checks;
+9. show `evidence/phase8/hybrid/DD-012.json`.
 
-Do not show or narrate private chain-of-thought. Show only observable instructions, structured model outputs, actions/tool results, diff, and evaluation evidence.
+Say explicitly: this benchmark case used **0 model calls** because the high-confidence skill path resolved it before fallback. The product still has a bounded coding-model fallback for unresolved/ambiguous cases.
 
-## 2:25–3:20 — Measured comparison
+## 2:15–3:05 — Measured comparison
 
-Show this frozen table:
+Show this table:
 
-| System | Context | Complete | VRR | Mean model calls | Mean time |
-|---|---|---:|---:|---:|---:|
-| context baseline | v0.2 | 12/12 | **0/12 (0.00%)** | 11.75 | 39.15s |
-| **structured/no review — final** | v0.2 | 12/12 | **1/12 (8.33%)** | 2.58 | 185.21s |
-| structured/review | v0.2 | 7/12 scored | **unscored** | partial | partial |
+| System | Complete | VRR | Root-cause accuracy | Mean model calls/turns | Mean time |
+|---|---:|---:|---:|---:|---:|
+| matched-context simple-agent baseline | 12/12 | **0/12 (0%)** | 0/12 | 11.75 | 39.15s |
+| Phase 5 staged LLM workflow | 12/12 | **1/12 (8.33%)** | 3/12 | 2.58 | 185.21s |
+| Phase 8 skills-only ablation | 12/12 | **12/12 (100%)** | **12/12** | **0.0** | **7.066s** |
+| **Phase 8 hybrid entry point** | **12/12** | **12/12 (100%)** | **12/12** | **0.0** | **6.9895s** |
 
-Say explicitly:
+State the scope carefully:
 
-- the strict controlled improvement is **+1 verified incident / +8.33 percentage points VRR**;
-- the absolute 1/12 result is modest and not production reliability;
-- incomplete infrastructure-failed runs do not receive a VRR.
+- primary matched-context improvement: **0/12 → 12/12 VRR (+100 percentage points)**;
+- all 12 declared benchmark incidents matched high-confidence skills, so the model fallback was not invoked;
+- this is **not an open-ended claim** that DriftDoctor can repair arbitrary dbt projects.
 
-## 3:20–4:05 — Changelog and removed experiment
+Show `evidence/phase8/manifest.json` with:
 
-Show `IMPROVEMENT_CHANGELOG.md` and tell the iteration story:
+- run `33257030328`;
+- repair-code SHA `0c6cf9b42863db4f45a94add11509988bcaa7815`;
+- hybrid artifact `9716167394` + digest;
+- skills-only artifact `9716167164` + digest.
 
-- frozen free-form baseline;
-- executable deterministic benchmark;
-- DriftDoctor v0.1: better protocol compliance but still 0/12 and much slower;
-- evaluation-context audit and context v0.2;
-- structured staged repair reaches the first verified repair;
-- semantic reviewer ablation is **removed** from the final system.
+## 3:05–3:55 — The improvement changelog
 
-For the removed reviewer experiment, state the evidence precisely: the final recovery produced only 7 scored cases; four cases hit local-inference transport timeouts and DD-008 produced no record, so its aggregate is intentionally `verified_resolution_rate=null`. Do not claim that the reviewer had a lower true VRR.
+Show `IMPROVEMENT_CHANGELOG.md` and tell the evidence-driven story:
 
-## 4:05–4:35 — Reproducibility and safety
+1. baseline: 0/12;
+2. v0.1: more evidence/retries but still 0/12 and slower;
+3. context validity audit: make genuinely documented business rules visible;
+4. Phase 5 staged model workflow: first verified repair, but only 1/12;
+5. semantic-review ablation: incomplete/unscored and removed;
+6. failure analysis: the small model often understood the symptom yet emitted an unchanged or incorrect patch;
+7. Phase 8: route recurring, contract-determined repairs into explicit specialized skills and keep the model only as fallback;
+8. **important integrity moment:** the first 12/12 implementation failed a mutation test for an unseen `owner_display` derivation. We kept the failing test, fixed the router generically, and reran the entire benchmark before freezing the result.
+
+Show one old model failure briefly, such as DD-003 choosing an invalid `DECIMAL(2,1)` cast, then the final skill using DuckDB `TRY_CAST(... AS DECIMAL(18,2))`.
+
+## 3:55–4:30 — Anti-leakage, reproducibility, safety
 
 Show:
 
 ```bash
-python scripts/validate_benchmark.py
-python scripts/smoke_benchmark.py
-python scripts/run_phase5.py --system context-baseline --model qwen2.5-coder:1.5b --max-calls 14
-python scripts/run_phase5.py --system driftdoctor-no-review --model qwen2.5-coder:1.5b --max-calls 14
+python -m unittest discover -s tests -p 'test_*.py'
+python scripts/submission_preflight.py
+python scripts/run_phase8.py --model qwen2.5-coder:1.5b --max-calls 14
 ```
 
-Then show `evidence/phase5/manifest.json` and mention:
+Mention:
 
-- pinned dbt/DuckDB versions;
-- synthetic local data and DuckDB;
-- local Ollama model / no paid model API key;
-- all 12 raw baseline and final case records checked into the repository;
-- source run IDs, evaluation SHAs, artifact IDs, and artifact digests preserved;
-- no automatic production deployment or merge;
-- human approval before consequential real-world changes.
+- all nine repair-skill anti-leakage/generalization tests passed before the final measurement;
+- runtime code contains no benchmark case IDs/evaluator imports;
+- final raw hybrid + skills-only evidence is checked into `evidence/phase8/`;
+- pinned dbt/DuckDB/Python and immutable GitHub Action SHAs;
+- synthetic local data, no warehouse credentials or paid API;
+- judge CLI works only on a disposable sandbox;
+- no automatic merge/deploy and human approval remains required.
 
-## 4:35–4:55 — Biggest contribution and hot take
+## 4:30–4:55 — Biggest contribution and hot takes
 
 Use this wording:
 
-> DriftDoctor's biggest contribution is not another coding-agent demo; it is a reproducible way to measure whether evidence selection, structured repair, and verification actually make pipeline repair more reliable—and to remove components when the evidence does not justify them.
+> DriftDoctor's biggest contribution is the routing decision: use models for ambiguity, but turn recurring, contract-determined repairs into inspectable tools and verify the result externally.
 
-Finish with:
+Finish with both insights:
 
-> **A green pipeline is not a verified pipeline.** More agentic machinery must earn its place with complete measured evidence.
+> **A green pipeline is not a verified pipeline.**
+>
+> **The best agent improvement was knowing when not to call the model.**

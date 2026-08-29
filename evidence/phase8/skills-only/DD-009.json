@@ -1,0 +1,103 @@
+{
+  "case_id": "DD-009",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 43effce..3a93a24 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/current_customers.sql b/models/current_customers.sql\nindex 9d9a8c3..edf299d 100644\n--- a/models/current_customers.sql\n+++ b/models/current_customers.sql\n@@ -3,3 +3,6 @@ select\n     email,\n     updated_at\n from {{ source('raw', 'raw_customer_updates') }}\n+qualify row_number() over (\n+    partition by customer_id order by updated_at desc\n+) = 1\n",
+  "elapsed_seconds": 6.645,
+  "fallback_used": false,
+  "incident": "A customer snapshot-like model now emits multiple current records per customer even though all dbt models compile. Restore the documented one-row-per-customer contract.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 0,
+  "oracle": {
+    "case_id": "DD-009",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=0; actual=0",
+        "name": "customer_grain_unique",
+        "passed": true
+      },
+      {
+        "detail": "expected=[['C001', 'new@example.com'], ['C002', 'stable@example.com']]; actual=[['C001', 'new@example.com'], ['C002', 'stable@example.com']]",
+        "name": "recency_rule_preserved",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m14:15:19  Running with dbt=1.11.14\n\u001b[0m14:15:19  Registered adapter: duckdb=1.11.0\n\u001b[0m14:15:19  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:15:19  \n\u001b[0m14:15:19  Concurrency: 1 threads (target='dev')\n\u001b[0m14:15:19  \n\u001b[0m14:15:19  1 of 3 START sql table model analytics.current_customers ....................... [RUN]\n\u001b[0m14:15:19  1 of 3 OK created sql table model analytics.current_customers .................. [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:15:19  2 of 3 START test not_null_current_customers_customer_id ....................... [RUN]\n\u001b[0m14:15:20  2 of 3 PASS not_null_current_customers_customer_id ............................. [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:15:20  3 of 3 START test unique_current_customers_customer_id ......................... [RUN]\n\u001b[0m14:15:20  3 of 3 PASS unique_current_customers_customer_id ............................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:15:20  \n\u001b[0m14:15:20  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.33 seconds (0.33s).\n\u001b[0m14:15:20  \n\u001b[0m14:15:20  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:15:20  \n\u001b[0m14:15:20  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n",
+    "passed": true
+  },
+  "passed": true,
+  "remaining_contract_concerns": [],
+  "root_cause_correct": true,
+  "root_cause_prediction": "grain_regression",
+  "skills": [
+    "latest_record"
+  ],
+  "status": "scored",
+  "system": "driftdoctor-v4-skills-only",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "repair_skill:latest_record"
+      ],
+      "files_to_change": [
+        "models/current_customers.sql"
+      ],
+      "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+      "root_cause_class": "grain_regression"
+    },
+    "elapsed_seconds": 6.645,
+    "fallback_used": false,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m14:15:16  Running with dbt=1.11.14\n\u001b[0m14:15:16  Registered adapter: duckdb=1.11.0\n\u001b[0m14:15:17  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  Concurrency: 1 threads (target='dev')\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  1 of 3 START sql table model analytics.current_customers ....................... [RUN]\n\u001b[0m14:15:17  1 of 3 OK created sql table model analytics.current_customers .................. [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:15:17  2 of 3 START test not_null_current_customers_customer_id ....................... [RUN]\n\u001b[0m14:15:17  2 of 3 PASS not_null_current_customers_customer_id ............................. [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:15:17  3 of 3 START test unique_current_customers_customer_id ......................... [RUN]\n\u001b[0m14:15:17  3 of 3 PASS unique_current_customers_customer_id ............................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.27 seconds (0.27s).\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 0,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "grain_regression",
+    "skills": [
+      "latest_record"
+    ],
+    "system": "driftdoctor-v0.4-hybrid-skills",
+    "trajectory": [
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/current_customers.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m14:15:16  Running with dbt=1.11.14\n\u001b[0m14:15:16  Registered adapter: duckdb=1.11.0\n\u001b[0m14:15:17  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  Concurrency: 1 threads (target='dev')\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  1 of 3 START sql table model analytics.current_customers ....................... [RUN]\n\u001b[0m14:15:17  1 of 3 OK created sql table model analytics.current_customers .................. [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:15:17  2 of 3 START test not_null_current_customers_customer_id ....................... [RUN]\n\u001b[0m14:15:17  2 of 3 PASS not_null_current_customers_customer_id ............................. [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:15:17  3 of 3 START test unique_current_customers_customer_id ......................... [RUN]\n\u001b[0m14:15:17  3 of 3 PASS unique_current_customers_customer_id ............................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.27 seconds (0.27s).\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:15:17  \n\u001b[0m14:15:17  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence repair skills derived from visible project structure and documented business contracts.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    email,\n    updated_at\nfrom {{ source('raw', 'raw_customer_updates') }}\nqualify row_number() over (\n    partition by customer_id order by updated_at desc\n) = 1\n",
+              "path": "models/current_customers.sql"
+            }
+          ],
+          "root_cause_class": "grain_regression",
+          "skills": [
+            "latest_record"
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "skills": [
+          "latest_record"
+        ],
+        "stage": "contract_skills"
+      }
+    ]
+  }
+}

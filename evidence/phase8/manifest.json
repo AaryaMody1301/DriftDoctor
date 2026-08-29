@@ -1,0 +1,32 @@
+{
+  "workflow_run_id": 33257030328,
+  "evaluation_head_sha": "0c6cf9b42863db4f45a94add11509988bcaa7815",
+  "context_version": "0.2",
+  "selected_system": "driftdoctor-v4-hybrid",
+  "expected_cases": 12,
+  "scored_cases": 12,
+  "verified_resolution_rate": 1.0,
+  "root_cause_accuracy": 1.0,
+  "fallback_cases": 0,
+  "mean_model_calls": 0.0,
+  "mean_elapsed_seconds": 6.9895,
+  "skills_only_ablation": {
+    "artifact_id": 9716167164,
+    "artifact_name": "phase8-skills-only-33257030328",
+    "artifact_digest": "sha256:404a8d60b1134ed78072421e5710ea1c0e8f19a4d15b4779e61f9c422201c030",
+    "verified_resolution_rate": 1.0,
+    "root_cause_accuracy": 1.0,
+    "mean_model_calls": 0.0,
+    "mean_elapsed_seconds": 7.066
+  },
+  "hybrid_final": {
+    "artifact_id": 9716167394,
+    "artifact_name": "phase8-hybrid-33257030328",
+    "artifact_digest": "sha256:b6788eb6ed860c339daf3c822639bfde9e759457c7ac9b7825d9a5e6da3ee030",
+    "verified_resolution_rate": 1.0,
+    "root_cause_accuracy": 1.0,
+    "fallback_cases": 0,
+    "mean_model_calls": 0.0,
+    "mean_elapsed_seconds": 6.9895
+  }
+}

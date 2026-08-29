@@ -1,93 +1,109 @@
 # Submission readiness checklist
 
-This checklist maps DriftDoctor's final package to the hackathon deliverables and scoring criteria. The measured software/evidence package is frozen; only the human-recorded video and portal submission remain outside the repository.
+This checklist maps DriftDoctor's final repository to the hackathon deliverables and rubric. Repository/code/evidence work is complete once the final `main` CI passes; only the human-recorded video and portal form remain outside the repository.
 
 ## Required deliverables
 
-- [x] Complete source code for benchmark, baseline, final agent workflow, evaluation, and experiment harness.
-- [x] Improvement Changelog includes baseline, iterations, failed experiments, results, and final decision.
-- [x] Preserve Phase 4 as a measured failed experiment rather than rewriting history.
-- [x] Preserve the incomplete semantic-review ablation with a null VRR rather than converting infrastructure failures into task failures.
+- [x] Complete code for benchmark, frozen baseline, specialized skills, hybrid fallback, evaluation harness, and safe judge CLI.
+- [x] Improvement Changelog preserves baseline, negative experiments, incomplete experiments, the generalization bug found after the first 12/12 run, and the corrected final architecture decision.
 - [x] Clean-environment reproduction guide (`REPRODUCE.md`).
-- [x] Case-level observable trajectories, tool/model outputs, diffs, and oracle outcomes preserved in `evidence/phase5/` for complete comparison arms.
-- [x] Judge-facing safe CLI operates on a disposable project copy and emits an approval-ready JSON report.
-- [x] CLI `--force` cannot delete arbitrary directories; only a DriftDoctor-marked sandbox can be replaced, with regression tests in `tests/test_run_incident_safety.py`.
-- [x] README includes final matched-context numbers, concise failure mode, and evidence-backed hot take.
-- [x] Freeze the publishable Phase 5 results: context baseline 0/12; final no-review workflow 1/12.
-- [x] Select final workflow using the predeclared evidence rule: **`driftdoctor-no-review`**.
-- [x] Update Improvement Changelog with final numbers and removal decision for semantic review.
-- [x] Produce final comparison table using only complete, matched-context runs.
-- [x] Preserve raw Phase 5 result records in the repository and record CI artifact IDs/digests in `evidence/phase5/manifest.json`.
-- [x] Pin GitHub Actions dependencies to immutable full commit SHAs and enforce that rule in submission preflight.
-- [x] Pin the post-evaluation rerun Ollama runtime to 0.33.2 and record runtime/model identity on future manual reruns.
-- [ ] At portal submission time, copy the exact latest passing `main` commit SHA into the submission form.
-- [ ] Record/upload a <=5 minute solution video.
-- [ ] Submit the final repository/video on the hackathon portal.
+- [x] Corrected final hybrid 12-case trajectories/diffs/oracle outputs preserved under `evidence/phase8/hybrid/`.
+- [x] Corrected skills-only ablation preserved under `evidence/phase8/skills-only/`.
+- [x] Historical Phase 5 evidence preserved under `evidence/phase5/` rather than overwritten by the better result.
+- [x] Phase 8 evidence manifest records corrected workflow run, repair-code SHA, both artifact IDs, and both SHA-256 artifact digests.
+- [x] Judge-facing CLI runs the final hybrid skill-first workflow on a disposable copy and emits an approval-ready JSON report.
+- [x] CLI sandbox deletion/path safety has regression tests.
+- [x] Repair-skill runtime has explicit anti-leakage tests and mutation-style generalization probes.
+- [x] Nine Phase 8 anti-leakage/generalization tests passed before the corrected benchmark measurement.
+- [x] README contains the final primary metric, scope caveat, failed experiments, safety boundary, and hot takes.
+- [x] GitHub Action dependencies are pinned to immutable full commit SHAs.
+- [x] Expensive historical/model/performance workflows, including Phase 8 measurement, are manual-only after the final evidence freeze.
+- [x] **Final hybrid result frozen: 12/12 verified repairs (100% VRR), 12/12 root-cause accuracy, 0 model calls, 0 fallback cases, 6.9895s/case.**
+- [x] Skills-only ablation frozen: 12/12 VRR, 0 model calls, 7.066s/case.
+- [x] DD-012 multi-fault challenge case is a verified pass in the final hybrid evidence.
+- [ ] At portal submission time, copy the exact latest passing `main` commit SHA into the form.
+- [ ] Record/upload the <=5 minute video using `docs/VIDEO_PLAN.md`.
+- [ ] Submit repository/video on the hackathon portal.
 
 ## Rubric audit
 
 ### Problem & User Value — 15
 
-- [x] Primary user is analytics/data engineers maintaining dbt projects.
-- [x] Bottleneck is evidence-heavy incident diagnosis plus safe repair verification.
-- [x] Product boundary is concrete: schema, contract, dependency, data-quality, and semantic drift in dbt pipelines.
-- [x] README states the before/after user workflow and provides a one-command local incident path.
+- [x] Primary user: analytics/data engineers responsible for dbt pipelines.
+- [x] Bottleneck: evidence-heavy incident diagnosis followed by safe contract-preserving repair verification.
+- [x] Concrete scope: source/schema/type/dependency/grain/data-quality/business-semantic drift.
+- [x] README gives the before/after workflow and one-command local incident path.
 
 ### Agent Solution & Engineering — 30
 
-- [x] Deterministic evidence gathering from dbt execution/artifacts and project files.
-- [x] Structured diagnosis and patch generation.
-- [x] Guarded writes restricted to intended project code.
-- [x] Deterministic build feedback creates a new signal before retry.
-- [x] Semantic-review ablation was measured instead of assuming more agent stages help.
-- [x] Hidden oracle is not exposed to the repair workflow.
-- [x] Final system freezes only components supported by complete publishable evidence.
-- [x] Judge-facing destructive operations have explicit ownership/path guardrails and tests.
+- [x] Local evidence gathering from dbt/project/source context.
+- [x] Specialized high-confidence repair skills for recurring deterministic classes.
+- [x] Guarded in-place patching; no arbitrary/new-file escape hatch for the skill path.
+- [x] Executable dbt verification and visible-contract checks.
+- [x] Bounded Qwen2.5-Coder fallback for cases outside the skill router.
+- [x] Human approval remains mandatory for consequential application.
+- [x] Hidden oracle/reference repairs are evaluator-only.
+- [x] Anti-leakage CI rejects evaluator/case-specific tokens in the final skill runtime.
+- [x] Mutation/generalization tests exercise alternative source/model/contract identifiers and time zones.
+- [x] Removed semantic reviewer is preserved as evidence that extra agent stages do not automatically help.
 
 ### End-to-End Quality — 20
 
-- [x] Starts from a broken local dbt project and ends in a concrete patch plus executable verification/report.
-- [x] Silent semantic failures can be caught by the external evaluator even when `dbt build` is green.
-- [x] Synthetic workspace prevents production side effects.
-- [x] Judge-facing CLI/report path uses a disposable copy, captures diff/trajectory/build evidence, and requires human approval.
-- [ ] Demonstrate the DD-004 approval-ready repair/evidence path in the video.
+- [x] Broken local dbt project → evidence → routed repair → guarded patch → executable build/checks → approval-ready report.
+- [x] External oracle catches silent semantic regressions that a green build can miss.
+- [x] Synthetic benchmark prevents production side effects.
+- [x] Local CLI never edits the source project or deploys automatically.
+- [x] DD-012 challenge case has a durable final hybrid trajectory showing two repair skills in one incident.
+- [x] First perfect benchmark implementation was not blindly frozen; a later mutation-test failure was fixed generically and the complete benchmark was rerun on corrected code.
+- [ ] Demonstrate the DD-012 repair path in the recorded video.
 
 ### Measured Improvement — 15
 
 - [x] One primary metric: Verified Resolution Rate (VRR).
-- [x] 12 reproducible cases including one multi-fault challenge case.
-- [x] Original baseline and Phase 4 measurements are preserved.
-- [x] Context-v0.2 baseline exists for a fair Phase 5 comparison.
-- [x] Publishable comparison arms each contain complete 12/12 evidence with no infrastructure errors.
-- [x] Headline claim uses only matched-context complete evidence: **0/12 -> 1/12 (+8.33 percentage points VRR)**.
-- [x] Incomplete reviewer recovery remains unscored (`verified_resolution_rate=null`).
+- [x] 12 fixed cases with one multi-fault challenge case.
+- [x] Matched-context simple-agent baseline: **0/12 VRR**.
+- [x] Intermediate Phase 5 workflow: **1/12 VRR**.
+- [x] Corrected final Phase 8 hybrid entry point: **12/12 VRR (100%)**.
+- [x] Final hybrid run is complete 12/12 with zero infrastructure errors.
+- [x] Primary improvement: **0/12 → 12/12 (+100 percentage points VRR)**.
+- [x] Final root-cause accuracy: **12/12 (100%)**.
+- [x] Final hybrid resource result: **0 model calls**, **0 fallback cases**, **6.9895s/case**.
+- [x] Skills-only ablation: **12/12**, **0 model calls**, **7.066s/case**.
+- [x] Incomplete semantic-review experiment remains explicitly unscored.
+- [x] README clearly scopes 12/12 to the declared benchmark and does not claim open-ended arbitrary repair capability.
 
 ### Reproducibility — 15
 
 - [x] Pinned Python/dbt/DuckDB versions.
-- [x] Post-evaluation rerun workflows pin Ollama and print runtime/model identity.
-- [x] GitHub Actions dependencies are immutable full-SHA references.
-- [x] Synthetic local data and DuckDB; no warehouse credentials.
-- [x] Reference repairs prove oracle solvability.
-- [x] `REPRODUCE.md` contains exact install/evaluation commands and the safe local CLI.
-- [x] Raw selected evidence is checked in rather than relying only on retention-limited CI artifacts.
-- [x] Source workflow run IDs, evaluation commit SHAs, artifact IDs, and SHA-256 artifact digests are recorded.
-- [ ] Copy the final post-hardening `main` SHA into the portal submission notes.
+- [x] Model-based historical workflows pin post-evaluation Ollama reruns and print runtime/model identity.
+- [x] GitHub Actions use full immutable SHAs.
+- [x] Synthetic local data; no warehouse credentials/private data.
+- [x] Reference repairs prove benchmark solvability.
+- [x] Final benchmark requires no Ollama/model runtime because all 12 cases resolve before fallback.
+- [x] `REPRODUCE.md` contains exact final hybrid, skills-only, and historical comparison commands.
+- [x] Raw corrected final evidence is checked into the repository.
+- [x] Corrected source run `33257030328`, repair-code SHA `0c6cf9b42863db4f45a94add11509988bcaa7815`, artifact IDs, and artifact digests are frozen in `evidence/phase8/manifest.json`.
+- [x] Unit tests include anti-leakage and mutation-style repair-skill probes.
+- [ ] Copy final passing `main` SHA into submission notes.
 
 ### Hot Take / Insights — 5
 
-Evidence-backed final insights:
+Evidence-backed insights:
 
-1. **A green pipeline is not a verified pipeline.** Phase 2 includes cases where `dbt build` succeeds while the semantic oracle fails.
-2. **Better protocol compliance is not the same as better task success.** Phase 4 improved tool discipline but stayed at 0/12 VRR.
-3. **An evaluation can be deterministic and still be invalid if required business context is hidden from the agent.** This motivated context v0.2.
-4. **More agentic machinery must earn its place.** Phase 4's verifier loop added latency without VRR gain, and the later semantic reviewer was removed after it failed to produce complete comparable evidence on the zero-budget runtime.
+1. **A green pipeline is not a verified pipeline.** The benchmark includes cases where compilation succeeds while semantic invariants fail.
+2. **Better protocol compliance is not the same as better task success.** Phase 4 improved discipline but stayed at 0/12 VRR.
+3. **Small models can diagnose better than they patch.** Phase 5 trajectories include correct-ish diagnoses followed by unchanged or technically invalid SQL edits.
+4. **More agentic machinery must earn its place.** The semantic-review stage was removed after it added cost/risk without complete comparable evidence.
+5. **A perfect benchmark score still needs adversarial checks.** A mutation test caught a real bug after the first 12/12 run; the result was re-earned on corrected code.
+6. **The best agent improvement was knowing when not to call the model.** High-confidence contract repairs are faster and more reliable as specialized tools; model calls are reserved for ambiguity.
 
 ## Evidence-integrity rules
 
 - Never publish a VRR from a partial run.
 - Never count an infrastructure timeout as a task failure without labeling it.
-- Never compare v0.1 and v0.2 context runs as a controlled agent-only comparison.
-- Never expose reference repairs or hidden oracle logic to the repair agent.
-- Never rewrite or delete a failed experiment solely because it hurts the final narrative.
-- Every final quantitative claim must point to checked-in evidence or an exact reproducible command.
+- Never compare context v0.1 and v0.2 as a controlled workflow-only comparison.
+- Never expose evaluator oracle/reference repairs to the runtime.
+- Never hard-code benchmark case IDs into the repair-skill runtime.
+- Never freeze a perfect benchmark result if an independent mutation/generalization check exposes a defect; fix generically and rerun the complete suite.
+- Never delete a failed experiment solely because it weakens the narrative.
+- Every quantitative claim must point to checked-in evidence or an exact reproducible command.

@@ -1,0 +1,112 @@
+{
+  "case_id": "DD-007",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex ba755ee..1785de5 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/schema.yml b/models/schema.yml\nindex 023fb44..3304542 100644\n--- a/models/schema.yml\n+++ b/models/schema.yml\n@@ -8,4 +8,4 @@ models:\n         data_tests:\n           - accepted_values:\n               arguments:\n-                values: ['revenue', 'refund']\n+                values: ['revenue', 'refund', 'loss']\ndiff --git a/models/stg_order_status.sql b/models/stg_order_status.sql\nindex 2d2ffca..a4412a4 100644\n--- a/models/stg_order_status.sql\n+++ b/models/stg_order_status.sql\n@@ -4,6 +4,7 @@ select\n     case\n       when status = 'paid' then 'revenue'\n       when status = 'refunded' then 'refund'\n+      when status = 'chargeback' then 'loss'\n       else 'unknown'\n     end as business_status\n from {{ source('raw', 'raw_orders') }}\n",
+  "elapsed_seconds": 6.634,
+  "fallback_used": false,
+  "incident": "A source system introduced a new status value. The project either rejects it or maps it incorrectly. Update the transformation so the new value is handled explicitly without weakening existing validation.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 0,
+  "oracle": {
+    "case_id": "DD-007",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[1, 'paid', 'revenue'], [2, 'refunded', 'refund'], [3, 'chargeback', 'loss']]; actual=[[1, 'paid', 'revenue'], [2, 'refunded', 'refund'], [3, 'chargeback', 'loss']]",
+        "name": "new_category_mapping",
+        "passed": true
+      },
+      {
+        "detail": "schema.yml must retain accepted_values and include loss",
+        "name": "accepted_values_validation_remains_explicit",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m14:16:56  Running with dbt=1.11.14\n\u001b[0m14:16:56  Registered adapter: duckdb=1.11.0\n\u001b[0m14:16:56  Found 1 model, 3 data tests, 1 source, 500 macros\n\u001b[0m14:16:56  \n\u001b[0m14:16:56  Concurrency: 1 threads (target='dev')\n\u001b[0m14:16:56  \n\u001b[0m14:16:56  1 of 4 START sql table model analytics.stg_order_status ........................ [RUN]\n\u001b[0m14:16:56  1 of 4 OK created sql table model analytics.stg_order_status ................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:16:56  2 of 4 START test accepted_values_stg_order_status_business_status__revenue__refund__loss  [RUN]\n\u001b[0m14:16:56  2 of 4 PASS accepted_values_stg_order_status_business_status__revenue__refund__loss  [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:16:56  3 of 4 START test not_null_stg_order_status_order_id ........................... [RUN]\n\u001b[0m14:16:56  3 of 4 PASS not_null_stg_order_status_order_id ................................. [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:16:56  4 of 4 START test unique_stg_order_status_order_id ............................. [RUN]\n\u001b[0m14:16:56  4 of 4 PASS unique_stg_order_status_order_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:16:56  \n\u001b[0m14:16:56  Finished running 1 table model, 3 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m14:16:57  \n\u001b[0m14:16:57  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:16:57  \n\u001b[0m14:16:57  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n",
+    "passed": true
+  },
+  "passed": true,
+  "remaining_contract_concerns": [],
+  "root_cause_correct": true,
+  "root_cause_prediction": "accepted_value_drift",
+  "skills": [
+    "categorical_mapping"
+  ],
+  "status": "scored",
+  "system": "driftdoctor-v4-hybrid",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "repair_skill:categorical_mapping"
+      ],
+      "files_to_change": [
+        "models/schema.yml",
+        "models/stg_order_status.sql"
+      ],
+      "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+      "root_cause_class": "accepted_value_drift"
+    },
+    "elapsed_seconds": 6.634,
+    "fallback_used": false,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m14:16:53  Running with dbt=1.11.14\n\u001b[0m14:16:53  Registered adapter: duckdb=1.11.0\n\u001b[0m14:16:54  Found 1 model, 3 data tests, 1 source, 500 macros\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  Concurrency: 1 threads (target='dev')\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  1 of 4 START sql table model analytics.stg_order_status ........................ [RUN]\n\u001b[0m14:16:54  1 of 4 OK created sql table model analytics.stg_order_status ................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:16:54  2 of 4 START test accepted_values_stg_order_status_business_status__revenue__refund__loss  [RUN]\n\u001b[0m14:16:54  2 of 4 PASS accepted_values_stg_order_status_business_status__revenue__refund__loss  [\u001b[32mPASS\u001b[0m in 0.03s]\n\u001b[0m14:16:54  3 of 4 START test not_null_stg_order_status_order_id ........................... [RUN]\n\u001b[0m14:16:54  3 of 4 PASS not_null_stg_order_status_order_id ................................. [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:16:54  4 of 4 START test unique_stg_order_status_order_id ............................. [RUN]\n\u001b[0m14:16:54  4 of 4 PASS unique_stg_order_status_order_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  Finished running 1 table model, 3 data tests in 0 hours 0 minutes and 0.27 seconds (0.27s).\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 0,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "accepted_value_drift",
+    "skills": [
+      "categorical_mapping"
+    ],
+    "system": "driftdoctor-v0.4-hybrid-skills",
+    "trajectory": [
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/schema.yml"
+          },
+          {
+            "applied": true,
+            "path": "models/stg_order_status.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m14:16:53  Running with dbt=1.11.14\n\u001b[0m14:16:53  Registered adapter: duckdb=1.11.0\n\u001b[0m14:16:54  Found 1 model, 3 data tests, 1 source, 500 macros\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  Concurrency: 1 threads (target='dev')\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  1 of 4 START sql table model analytics.stg_order_status ........................ [RUN]\n\u001b[0m14:16:54  1 of 4 OK created sql table model analytics.stg_order_status ................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:16:54  2 of 4 START test accepted_values_stg_order_status_business_status__revenue__refund__loss  [RUN]\n\u001b[0m14:16:54  2 of 4 PASS accepted_values_stg_order_status_business_status__revenue__refund__loss  [\u001b[32mPASS\u001b[0m in 0.03s]\n\u001b[0m14:16:54  3 of 4 START test not_null_stg_order_status_order_id ........................... [RUN]\n\u001b[0m14:16:54  3 of 4 PASS not_null_stg_order_status_order_id ................................. [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:16:54  4 of 4 START test unique_stg_order_status_order_id ............................. [RUN]\n\u001b[0m14:16:54  4 of 4 PASS unique_stg_order_status_order_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  Finished running 1 table model, 3 data tests in 0 hours 0 minutes and 0.27 seconds (0.27s).\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:16:54  \n\u001b[0m14:16:54  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence repair skills derived from visible project structure and documented business contracts.",
+          "files": [
+            {
+              "content": "version: 2\nmodels:\n  - name: stg_order_status\n    columns:\n      - name: order_id\n        data_tests: [unique, not_null]\n      - name: business_status\n        data_tests:\n          - accepted_values:\n              arguments:\n                values: ['revenue', 'refund', 'loss']\n",
+              "path": "models/schema.yml"
+            },
+            {
+              "content": "select\n    order_id,\n    status,\n    case\n      when status = 'paid' then 'revenue'\n      when status = 'refunded' then 'refund'\n      when status = 'chargeback' then 'loss'\n      else 'unknown'\n    end as business_status\nfrom {{ source('raw', 'raw_orders') }}\n",
+              "path": "models/stg_order_status.sql"
+            }
+          ],
+          "root_cause_class": "accepted_value_drift",
+          "skills": [
+            "categorical_mapping"
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "skills": [
+          "categorical_mapping"
+        ],
+        "stage": "contract_skills"
+      }
+    ]
+  }
+}

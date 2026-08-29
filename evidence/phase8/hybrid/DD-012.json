@@ -1,0 +1,108 @@
+{
+  "case_id": "DD-012",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 72d00b8..8a6b66a 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/stg_customer_revenue.sql b/models/stg_customer_revenue.sql\nindex a2c8067..7f98af9 100644\n--- a/models/stg_customer_revenue.sql\n+++ b/models/stg_customer_revenue.sql\n@@ -1,5 +1,5 @@\n select\n     customer_id,\n-    customer_name,\n-    revenue_text * 1.0 as revenue_amount\n+    client_name as customer_name,\n+    try_cast(revenue_text as decimal(18,2)) as revenue_amount\n from {{ source('raw', 'raw_customer_revenue') }}\n",
+  "elapsed_seconds": 8.881,
+  "fallback_used": false,
+  "incident": "A customer revenue mart fails after an upstream migration. More than one independent upstream change is present. Diagnose all causal faults and restore the mart without masking invalid source data.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 0,
+  "oracle": {
+    "case_id": "DD-012",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[1, 'Ada', 100.0], [2, 'Grace', None], [3, 'Linus', 50.0]]; actual=[[1, 'Ada', 100.0], [2, 'Grace', None], [3, 'Linus', 50.0]]",
+        "name": "multi_fault_output_contract",
+        "passed": true
+      },
+      {
+        "detail": "expected=1; actual=1",
+        "name": "invalid_source_value_handled_explicitly",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m14:17:43  Running with dbt=1.11.14\n\u001b[0m14:17:44  Registered adapter: duckdb=1.11.0\n\u001b[0m14:17:44  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m14:17:44  \n\u001b[0m14:17:44  Concurrency: 1 threads (target='dev')\n\u001b[0m14:17:44  \n\u001b[0m14:17:44  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m14:17:44  1 of 4 OK created sql table model analytics.stg_customer_revenue ............... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:17:44  2 of 4 START sql table model analytics.mart_customer_revenue ................... [RUN]\n\u001b[0m14:17:44  2 of 4 OK created sql table model analytics.mart_customer_revenue .............. [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m14:17:44  3 of 4 START test not_null_mart_customer_revenue_customer_id ................... [RUN]\n\u001b[0m14:17:44  3 of 4 PASS not_null_mart_customer_revenue_customer_id ......................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:17:44  4 of 4 START test unique_mart_customer_revenue_customer_id ..................... [RUN]\n\u001b[0m14:17:44  4 of 4 PASS unique_mart_customer_revenue_customer_id ........................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:17:44  \n\u001b[0m14:17:44  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.35 seconds (0.35s).\n\u001b[0m14:17:44  \n\u001b[0m14:17:44  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:17:44  \n\u001b[0m14:17:44  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n",
+    "passed": true
+  },
+  "passed": true,
+  "remaining_contract_concerns": [],
+  "root_cause_correct": true,
+  "root_cause_prediction": "multi_fault_schema_and_type_drift",
+  "skills": [
+    "source_alias",
+    "safe_numeric"
+  ],
+  "status": "scored",
+  "system": "driftdoctor-v4-hybrid",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "repair_skill:source_alias",
+        "repair_skill:safe_numeric"
+      ],
+      "files_to_change": [
+        "models/stg_customer_revenue.sql"
+      ],
+      "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+      "root_cause_class": "multi_fault_schema_and_type_drift"
+    },
+    "elapsed_seconds": 8.881,
+    "fallback_used": false,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m14:17:38  Running with dbt=1.11.14\n\u001b[0m14:17:38  Registered adapter: duckdb=1.11.0\n\u001b[0m14:17:39  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  Concurrency: 1 threads (target='dev')\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m14:17:39  1 of 4 OK created sql table model analytics.stg_customer_revenue ............... [\u001b[32mOK\u001b[0m in 0.10s]\n\u001b[0m14:17:39  2 of 4 START sql table model analytics.mart_customer_revenue ................... [RUN]\n\u001b[0m14:17:39  2 of 4 OK created sql table model analytics.mart_customer_revenue .............. [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m14:17:39  3 of 4 START test not_null_mart_customer_revenue_customer_id ................... [RUN]\n\u001b[0m14:17:39  3 of 4 PASS not_null_mart_customer_revenue_customer_id ......................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:17:39  4 of 4 START test unique_mart_customer_revenue_customer_id ..................... [RUN]\n\u001b[0m14:17:39  4 of 4 PASS unique_mart_customer_revenue_customer_id ........................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 0,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "multi_fault_schema_and_type_drift",
+    "skills": [
+      "source_alias",
+      "safe_numeric"
+    ],
+    "system": "driftdoctor-v0.4-hybrid-skills",
+    "trajectory": [
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_customer_revenue.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m14:17:38  Running with dbt=1.11.14\n\u001b[0m14:17:38  Registered adapter: duckdb=1.11.0\n\u001b[0m14:17:39  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  Concurrency: 1 threads (target='dev')\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m14:17:39  1 of 4 OK created sql table model analytics.stg_customer_revenue ............... [\u001b[32mOK\u001b[0m in 0.10s]\n\u001b[0m14:17:39  2 of 4 START sql table model analytics.mart_customer_revenue ................... [RUN]\n\u001b[0m14:17:39  2 of 4 OK created sql table model analytics.mart_customer_revenue .............. [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m14:17:39  3 of 4 START test not_null_mart_customer_revenue_customer_id ................... [RUN]\n\u001b[0m14:17:39  3 of 4 PASS not_null_mart_customer_revenue_customer_id ......................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:17:39  4 of 4 START test unique_mart_customer_revenue_customer_id ..................... [RUN]\n\u001b[0m14:17:39  4 of 4 PASS unique_mart_customer_revenue_customer_id ........................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:17:39  \n\u001b[0m14:17:39  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence repair skills derived from visible project structure and documented business contracts.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    client_name as customer_name,\n    try_cast(revenue_text as decimal(18,2)) as revenue_amount\nfrom {{ source('raw', 'raw_customer_revenue') }}\n",
+              "path": "models/stg_customer_revenue.sql"
+            }
+          ],
+          "root_cause_class": "multi_fault_schema_and_type_drift",
+          "skills": [
+            "source_alias",
+            "safe_numeric"
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "skills": [
+          "source_alias",
+          "safe_numeric"
+        ],
+        "stage": "contract_skills"
+      }
+    ]
+  }
+}

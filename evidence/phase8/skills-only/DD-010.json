@@ -1,0 +1,103 @@
+{
+  "case_id": "DD-010",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 81dfcc6..342eea4 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/daily_events.sql b/models/daily_events.sql\nindex 2302cf7..ebb15bd 100644\n--- a/models/daily_events.sql\n+++ b/models/daily_events.sql\n@@ -1,5 +1,5 @@\n select\n     event_id,\n-    cast(event_ts_utc as date) as reporting_date,\n+    cast(timezone('Asia/Kolkata', timezone('UTC', cast(event_ts_utc as timestamp))) as date) as reporting_date,\n     amount\n from {{ source('raw', 'raw_events') }}\n",
+  "elapsed_seconds": 6.626,
+  "fallback_used": false,
+  "incident": "Daily metrics shifted across date boundaries after timestamp handling changed upstream. Fix the transformation so reporting dates follow the documented timezone rule.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 0,
+  "oracle": {
+    "case_id": "DD-010",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[1, '2026-08-28', 10], [2, '2026-08-29', 20], [3, '2026-08-29', 30]]; actual=[[1, '2026-08-28', 10], [2, '2026-08-29', 20], [3, '2026-08-29', 30]]",
+        "name": "reporting_timezone_boundaries",
+        "passed": true
+      },
+      {
+        "detail": "expected=[['2026-08-28', 10], ['2026-08-29', 50]]; actual=[['2026-08-28', 10], ['2026-08-29', 50]]",
+        "name": "daily_aggregate_totals",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m14:15:28  Running with dbt=1.11.14\n\u001b[0m14:15:28  Registered adapter: duckdb=1.11.0\n\u001b[0m14:15:28  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:15:28  \n\u001b[0m14:15:28  Concurrency: 1 threads (target='dev')\n\u001b[0m14:15:28  \n\u001b[0m14:15:29  1 of 3 START sql table model analytics.daily_events ............................ [RUN]\n\u001b[0m14:15:29  1 of 3 OK created sql table model analytics.daily_events ....................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:15:29  2 of 3 START test not_null_daily_events_event_id ............................... [RUN]\n\u001b[0m14:15:29  2 of 3 PASS not_null_daily_events_event_id ..................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:15:29  3 of 3 START test unique_daily_events_event_id ................................. [RUN]\n\u001b[0m14:15:29  3 of 3 PASS unique_daily_events_event_id ....................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:15:29  \n\u001b[0m14:15:29  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.33 seconds (0.33s).\n\u001b[0m14:15:29  \n\u001b[0m14:15:29  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:15:29  \n\u001b[0m14:15:29  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n",
+    "passed": true
+  },
+  "passed": true,
+  "remaining_contract_concerns": [],
+  "root_cause_correct": true,
+  "root_cause_prediction": "timezone_semantics_changed",
+  "skills": [
+    "timezone_conversion"
+  ],
+  "status": "scored",
+  "system": "driftdoctor-v4-skills-only",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "repair_skill:timezone_conversion"
+      ],
+      "files_to_change": [
+        "models/daily_events.sql"
+      ],
+      "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+      "root_cause_class": "timezone_semantics_changed"
+    },
+    "elapsed_seconds": 6.626,
+    "fallback_used": false,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m14:15:25  Running with dbt=1.11.14\n\u001b[0m14:15:25  Registered adapter: duckdb=1.11.0\n\u001b[0m14:15:26  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  Concurrency: 1 threads (target='dev')\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  1 of 3 START sql table model analytics.daily_events ............................ [RUN]\n\u001b[0m14:15:26  1 of 3 OK created sql table model analytics.daily_events ....................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:15:26  2 of 3 START test not_null_daily_events_event_id ............................... [RUN]\n\u001b[0m14:15:26  2 of 3 PASS not_null_daily_events_event_id ..................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:15:26  3 of 3 START test unique_daily_events_event_id ................................. [RUN]\n\u001b[0m14:15:26  3 of 3 PASS unique_daily_events_event_id ....................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 0,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "timezone_semantics_changed",
+    "skills": [
+      "timezone_conversion"
+    ],
+    "system": "driftdoctor-v0.4-hybrid-skills",
+    "trajectory": [
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/daily_events.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m14:15:25  Running with dbt=1.11.14\n\u001b[0m14:15:25  Registered adapter: duckdb=1.11.0\n\u001b[0m14:15:26  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  Concurrency: 1 threads (target='dev')\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  1 of 3 START sql table model analytics.daily_events ............................ [RUN]\n\u001b[0m14:15:26  1 of 3 OK created sql table model analytics.daily_events ....................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:15:26  2 of 3 START test not_null_daily_events_event_id ............................... [RUN]\n\u001b[0m14:15:26  2 of 3 PASS not_null_daily_events_event_id ..................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:15:26  3 of 3 START test unique_daily_events_event_id ................................. [RUN]\n\u001b[0m14:15:26  3 of 3 PASS unique_daily_events_event_id ....................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:15:26  \n\u001b[0m14:15:26  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence repair skills derived from visible project structure and documented business contracts.",
+          "files": [
+            {
+              "content": "select\n    event_id,\n    cast(timezone('Asia/Kolkata', timezone('UTC', cast(event_ts_utc as timestamp))) as date) as reporting_date,\n    amount\nfrom {{ source('raw', 'raw_events') }}\n",
+              "path": "models/daily_events.sql"
+            }
+          ],
+          "root_cause_class": "timezone_semantics_changed",
+          "skills": [
+            "timezone_conversion"
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "skills": [
+          "timezone_conversion"
+        ],
+        "stage": "contract_skills"
+      }
+    ]
+  }
+}

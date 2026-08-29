@@ -1,0 +1,103 @@
+{
+  "case_id": "DD-008",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex de4a828..2215402 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/stg_payments.sql b/models/stg_payments.sql\nindex 72ad347..7a81dd3 100644\n--- a/models/stg_payments.sql\n+++ b/models/stg_payments.sql\n@@ -1,4 +1,4 @@\n select\n     payment_id,\n-    {{ normalize_currency('amount_cents', divisor=100) }} as amount_dollars\n+    {{ normalize_currency('amount_cents', scale=100) }} as amount_dollars\n from {{ source('raw', 'raw_payments') }}\n",
+  "elapsed_seconds": 6.567,
+  "fallback_used": false,
+  "incident": "Several models fail after a shared macro refactor. Repair the affected call site while preserving the macro's new interface and existing model behavior.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 0,
+  "oracle": {
+    "case_id": "DD-008",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[1, 12.34], [2, 50.0]]; actual=[[1, 12.34], [2, 50.0]]",
+        "name": "macro_output_matches_fixture",
+        "passed": true
+      },
+      {
+        "detail": "call site must use the current scale argument",
+        "name": "macro_call_uses_current_interface",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m14:17:05  Running with dbt=1.11.14\n\u001b[0m14:17:05  Registered adapter: duckdb=1.11.0\n\u001b[0m14:17:05  Found 1 model, 2 data tests, 1 source, 501 macros\n\u001b[0m14:17:05  \n\u001b[0m14:17:05  Concurrency: 1 threads (target='dev')\n\u001b[0m14:17:05  \n\u001b[0m14:17:05  1 of 3 START sql table model analytics.stg_payments ............................ [RUN]\n\u001b[0m14:17:06  1 of 3 OK created sql table model analytics.stg_payments ....................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:17:06  2 of 3 START test not_null_stg_payments_payment_id ............................. [RUN]\n\u001b[0m14:17:06  2 of 3 PASS not_null_stg_payments_payment_id ................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:17:06  3 of 3 START test unique_stg_payments_payment_id ............................... [RUN]\n\u001b[0m14:17:06  3 of 3 PASS unique_stg_payments_payment_id ..................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:17:06  \n\u001b[0m14:17:06  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.32 seconds (0.32s).\n\u001b[0m14:17:06  \n\u001b[0m14:17:06  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:17:06  \n\u001b[0m14:17:06  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n",
+    "passed": true
+  },
+  "passed": true,
+  "remaining_contract_concerns": [],
+  "root_cause_correct": true,
+  "root_cause_prediction": "macro_signature_changed",
+  "skills": [
+    "macro_interface"
+  ],
+  "status": "scored",
+  "system": "driftdoctor-v4-hybrid",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "repair_skill:macro_interface"
+      ],
+      "files_to_change": [
+        "models/stg_payments.sql"
+      ],
+      "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+      "root_cause_class": "macro_signature_changed"
+    },
+    "elapsed_seconds": 6.567,
+    "fallback_used": false,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m14:17:01  Running with dbt=1.11.14\n\u001b[0m14:17:01  Registered adapter: duckdb=1.11.0\n\u001b[0m14:17:01  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m14:17:03  Found 1 model, 2 data tests, 1 source, 501 macros\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  Concurrency: 1 threads (target='dev')\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  1 of 3 START sql table model analytics.stg_payments ............................ [RUN]\n\u001b[0m14:17:03  1 of 3 OK created sql table model analytics.stg_payments ....................... [\u001b[32mOK\u001b[0m in 0.10s]\n\u001b[0m14:17:03  2 of 3 START test not_null_stg_payments_payment_id ............................. [RUN]\n\u001b[0m14:17:03  2 of 3 PASS not_null_stg_payments_payment_id ................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:17:03  3 of 3 START test unique_stg_payments_payment_id ............................... [RUN]\n\u001b[0m14:17:03  3 of 3 PASS unique_stg_payments_payment_id ..................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.25 seconds (0.25s).\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 0,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "macro_signature_changed",
+    "skills": [
+      "macro_interface"
+    ],
+    "system": "driftdoctor-v0.4-hybrid-skills",
+    "trajectory": [
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_payments.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m14:17:01  Running with dbt=1.11.14\n\u001b[0m14:17:01  Registered adapter: duckdb=1.11.0\n\u001b[0m14:17:01  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m14:17:03  Found 1 model, 2 data tests, 1 source, 501 macros\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  Concurrency: 1 threads (target='dev')\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  1 of 3 START sql table model analytics.stg_payments ............................ [RUN]\n\u001b[0m14:17:03  1 of 3 OK created sql table model analytics.stg_payments ....................... [\u001b[32mOK\u001b[0m in 0.10s]\n\u001b[0m14:17:03  2 of 3 START test not_null_stg_payments_payment_id ............................. [RUN]\n\u001b[0m14:17:03  2 of 3 PASS not_null_stg_payments_payment_id ................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:17:03  3 of 3 START test unique_stg_payments_payment_id ............................... [RUN]\n\u001b[0m14:17:03  3 of 3 PASS unique_stg_payments_payment_id ..................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.25 seconds (0.25s).\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:17:03  \n\u001b[0m14:17:03  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence repair skills derived from visible project structure and documented business contracts.",
+          "files": [
+            {
+              "content": "select\n    payment_id,\n    {{ normalize_currency('amount_cents', scale=100) }} as amount_dollars\nfrom {{ source('raw', 'raw_payments') }}\n",
+              "path": "models/stg_payments.sql"
+            }
+          ],
+          "root_cause_class": "macro_signature_changed",
+          "skills": [
+            "macro_interface"
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "skills": [
+          "macro_interface"
+        ],
+        "stage": "contract_skills"
+      }
+    ]
+  }
+}
