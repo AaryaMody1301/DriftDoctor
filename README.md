@@ -2,7 +2,7 @@
 
 DriftDoctor is an evidence-first agentic workflow for diagnosing and safely repairing dbt regressions caused by schema, dependency, grain, data-quality, and business-contract drift.
 
-> **Final primary benchmark result:** the Phase 8 high-confidence repair-skill path solved **12/12 incidents (100% VRR)** on the frozen context-v0.2 benchmark, versus **0/12** for the matched-context simple-agent baseline. It also classified **12/12 root causes**, used **0 model calls**, averaged **7.88 seconds/case**, and passed the DD-012 multi-fault challenge case. This is a measured result on the declared 12-case contract-drift benchmark, **not an open-ended claim that DriftDoctor solves arbitrary dbt incidents**.
+> **Final primary benchmark result:** the Phase 8 **hybrid skill-first entry point** solved **12/12 incidents (100% VRR)** on the frozen context-v0.2 benchmark, versus **0/12** for the matched-context simple-agent baseline. It also classified **12/12 root causes**, used **0 model calls**, averaged **6.99 seconds/case**, and passed the DD-012 multi-fault challenge case. All 12 declared benchmark incidents matched high-confidence repair skills, so the bounded local-model fallback was not needed in this run. This is a measured result on the declared 12-case contract-drift benchmark, **not an open-ended claim that DriftDoctor solves arbitrary dbt incidents**.
 
 ## User and bottleneck
 
@@ -58,7 +58,7 @@ The benchmark-only external oracle is evaluator-side and is never available to t
 - UTC-to-local reporting-date conversion;
 - documented accounting formulas.
 
-The skills inspect only the local project, source CSV headers, and `BUSINESS_CONTEXT.md`. They do not import benchmark case IDs, evaluator oracle code, or reference repairs. CI enforces this boundary and runs mutation-style probes with alternative names and time zones.
+The skills inspect only the local project, source CSV headers, and `BUSINESS_CONTEXT.md`. They do not import benchmark case IDs, evaluator oracle code, or reference repairs. CI enforces this boundary and runs mutation-style probes with alternative contract/source identifiers and time zones.
 
 ## What success means
 
@@ -78,16 +78,19 @@ All rows below use the same 12 frozen context-v0.2 fixtures and the same externa
 |---|---:|---:|---:|---:|---:|
 | matched-context simple-agent baseline | 12/12 | **0/12 (0%)** | 0/12 (0%) | 11.75 | 39.15s |
 | Phase 5 staged LLM workflow | 12/12 | **1/12 (8.33%)** | 3/12 (25%) | 2.58 | 185.21s |
-| **Phase 8 specialized-skill path** | **12/12** | **12/12 (100% VRR)** | **12/12 (100%)** | **0.0** | **7.88s** |
+| Phase 8 skills-only ablation | 12/12 | **12/12 (100%)** | 12/12 (100%) | 0.0 | 7.07s |
+| **Phase 8 hybrid entry point (final)** | **12/12** | **12/12 (100% VRR)** | **12/12 (100%)** | **0.0** | **6.99s** |
 
-The resource difference is deliberate: the intervention being measured is moving known, high-confidence repair classes out of repeated model generation and into specialized deterministic skills. The configured local coding model remains the fallback for cases that the skill layer cannot resolve, but **all 12 primary benchmark cases were handled by skills, so the frozen primary run used 0 model calls**.
+The resource difference is deliberate: the intervention being measured is moving known, high-confidence repair classes out of repeated model generation and into specialized deterministic skills. The configured local coding model remains the fallback for cases that the skill layer cannot resolve. **All 12 primary benchmark cases were handled by skills, so the final hybrid run used 0 model calls and 0 fallback cases.**
 
-Phase 8 workflow run: `33256430999`  
-Evaluation SHA: `b0dbe1faddb0979f26421a8976e62780034dc067`  
-Artifact ID: `9715977028`  
-Artifact digest: `sha256:e97831f48b273f02ea280ba9ded5ddbbef0169f6201f7748f4dd0c7cf82b0f32`
+Final Phase 8 workflow run: `33257030328`  
+Repair-code evaluation SHA: `0c6cf9b42863db4f45a94add11509988bcaa7815`  
+Hybrid artifact ID: `9716167394`  
+Hybrid artifact digest: `sha256:b6788eb6ed860c339daf3c822639bfde9e759457c7ac9b7825d9a5e6da3ee030`  
+Skills-only artifact ID: `9716167164`  
+Skills-only artifact digest: `sha256:404a8d60b1134ed78072421e5710ea1c0e8f19a4d15b4779e61f9c422201c030`
 
-Complete raw case records, trajectories, diffs, evaluator outputs, summary, and provenance are checked into [`evidence/phase8/`](evidence/phase8/).
+Complete raw hybrid and skills-only case records, trajectories, diffs, evaluator outputs, summaries, and provenance are checked into [`evidence/phase8/`](evidence/phase8/).
 
 ## Why the architecture changed
 
@@ -97,7 +100,8 @@ The project intentionally preserves failed experiments:
 2. DriftDoctor v0.1 added evidence/retry orchestration but still produced **0/12** and became much slower.
 3. The Phase 5 staged workflow improved protocol discipline but solved only **1/12**. Failure analysis showed the 1.5B model often understood the symptom yet emitted an unchanged or technically wrong patch.
 4. An extra semantic-review model stage was removed because it added latency/transport risk without a complete publishable improvement.
-5. Phase 8 moved recurring high-confidence repairs into specialized skills and kept the LLM only as fallback. That path produced the complete **12/12** primary result.
+5. Phase 8 moved recurring high-confidence repairs into specialized skills and kept the LLM only as fallback. The actual hybrid entry point then produced the complete **12/12** primary result without needing fallback inference.
+6. A mutation test caught an overly fuzzy derived-field alias after the first 12/12 run. That bug was fixed generically, and the full benchmark + hybrid entry point were rerun on the corrected repair-code SHA before final evidence was frozen.
 
 This is the main engineering contribution: use model reasoning where ambiguity exists, and use deterministic tools where the contract already determines the safe transformation.
 
@@ -130,9 +134,15 @@ python scripts/run_incident.py \
 
 The command operates on a marked disposable sandbox, never modifies the source project, never deploys/merges automatically, and writes `driftdoctor-report.json` containing the repair path, build evidence, diff, fallback usage, and explicit human-approval requirement.
 
-### Reproduce the final primary evaluation
+### Reproduce the final hybrid evaluation
 
-No model runtime is required for the frozen Phase 8 skills-only path:
+```bash
+python scripts/run_phase8.py \
+  --model qwen2.5-coder:1.5b \
+  --max-calls 14
+```
+
+On the frozen benchmark, no skill falls through, so this command completes without contacting a model runtime. For the explicit skills-only ablation:
 
 ```bash
 python scripts/run_phase8.py --no-fallback \
@@ -140,18 +150,19 @@ python scripts/run_phase8.py --no-fallback \
   --max-calls 14
 ```
 
-Then inspect:
+Inspect:
 
 ```text
+benchmark/results/phase8/hybrid/summary.json
+benchmark/results/phase8/hybrid/DD-001.json ... DD-012.json
 benchmark/results/phase8/skills-only/summary.json
-benchmark/results/phase8/skills-only/DD-001.json ... DD-012.json
 ```
 
 See [`REPRODUCE.md`](REPRODUCE.md) for the clean-environment procedure and historical comparison commands.
 
 ## Evidence and submission material
 
-- [`evidence/phase8/README.md`](evidence/phase8/README.md) — final primary evidence and provenance
+- [`evidence/phase8/README.md`](evidence/phase8/README.md) — final hybrid + skills-only evidence and provenance
 - [`docs/PHASE_8.md`](docs/PHASE_8.md) — architecture decision and measured result
 - [`REPRODUCE.md`](REPRODUCE.md) — clean-environment reproduction
 - [`docs/EVALUATION.md`](docs/EVALUATION.md) — evaluation contract and fairness rules
