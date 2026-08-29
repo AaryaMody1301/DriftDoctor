@@ -4,9 +4,9 @@ import time
 from pathlib import Path
 
 from driftdoctor.ambiguity import resolve_ambiguous_missing_ref
+from driftdoctor.contract_checks import semantic_concerns
 from driftdoctor.repair_skills import propose_contract_patch
 from driftdoctor.v2 import _business_context, _run_build
-from driftdoctor.v3 import run_v3, semantic_concerns
 
 
 def _apply_existing_only(root: Path, patch: dict) -> list[dict]:
@@ -23,7 +23,7 @@ def _apply_existing_only(root: Path, patch: dict) -> list[dict]:
         elif not (raw.startswith("models/") or raw.startswith("macros/")):
             reason = "path is outside editable models/macros scope"
         elif not target.is_file():
-            reason = "new files are not allowed by the contract-skill guard"
+            reason = "new files are not allowed by the repair guard"
         elif len(content.strip()) < 12:
             reason = "replacement is implausibly short"
         elif "```" in content or "complete replacement contents" in content.lower():
@@ -56,11 +56,16 @@ def _result(
     fallback_used: bool,
     fallback_mode: str | None = None,
     diagnosis: dict | None = None,
+    escalation_required: bool = False,
 ) -> dict:
     if diagnosis is None:
         diagnosis = {
             "root_cause_class": prediction,
-            "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+            "hypothesis": (
+                "Visible contract and project structure matched deterministic repair skills."
+                if prediction != "unknown"
+                else "The bounded workflow could not establish a verified repair from visible evidence."
+            ),
             "evidence": [f"repair_skill:{name}" for name in skills],
             "files_to_change": [item["path"] for item in files],
         }
@@ -76,6 +81,7 @@ def _result(
         "skills": skills,
         "fallback_used": fallback_used,
         "fallback_mode": fallback_mode,
+        "escalation_required": escalation_required,
         "trajectory": trajectory,
     }
 
@@ -88,20 +94,26 @@ def run_v4(
     *,
     allow_fallback: bool = True,
 ) -> dict:
-    """Run selective agency: deterministic skills first, bounded agents for ambiguity.
+    """Run the final selective-agency DriftDoctor workflow.
 
-    High-confidence contract repairs remain deterministic. If the project exposes one
-    bounded dependency ambiguity, a constrained agent may choose only from observed
-    candidate models or abstain. Open-ended v3 repair remains the last fallback.
+    1. Capture the broken-state dbt signal.
+    2. Apply deterministic skills only when the visible contract determines a safe edit.
+    3. If exactly one bounded dependency ambiguity remains, let a constrained agent
+       choose only among observed candidate models or abstain.
+    4. Verify with dbt + visible contract checks.
+    5. Escalate to a human instead of using the historically weak open-ended coding
+       fallback when the bounded workflow cannot verify a repair.
+
     Hidden benchmark oracle/reference-repair code is never consulted inside this workflow.
+    `max_model_calls` is retained for CLI/evaluation compatibility; the final bounded
+    agent currently uses at most one logical model call.
     """
+    del max_model_calls
     root = root.resolve()
     started = time.monotonic()
     context = _business_context(root)
     trajectory: list[dict] = []
 
-    # Record the broken-state executable evidence before proposing a repair. This makes
-    # the final trajectory show the actual before/after verification signal.
     initial_build = _run_build(root)
     trajectory.append({"stage": "initial_build", "build": initial_build})
 
@@ -163,11 +175,9 @@ def run_v4(
             trajectory=trajectory,
             model_calls=0,
             fallback_used=False,
+            escalation_required=build.get("returncode") != 0 or bool(concerns),
         )
 
-    # First agentic fallback: resolve a bounded observed ambiguity rather than asking a
-    # coding model to regenerate whole files. The model can only select an existing
-    # candidate dependency or abstain; the executor and verifier remain deterministic.
     ambiguity = resolve_ambiguous_missing_ref(root, incident, context, model)
     ambiguity_calls = int(ambiguity.get("model_calls", 0))
     if ambiguity_calls:
@@ -180,6 +190,7 @@ def run_v4(
                 "reason": ambiguity.get("reason"),
             }
         )
+
     if ambiguity.get("handled"):
         ambiguity_patch = ambiguity["patch"]
         applied = _apply_existing_only(root, ambiguity_patch)
@@ -194,15 +205,15 @@ def run_v4(
                 "remaining_contract_concerns": concerns,
             }
         )
+        decision = ambiguity.get("decision") or {}
+        diagnosis = {
+            "root_cause_class": ambiguity.get("root_cause_class", "model_ref_renamed"),
+            "hypothesis": "A missing dependency had multiple observed candidates; a bounded agent selected from those candidates.",
+            "evidence": list(decision.get("evidence") or [])
+            + [f"agent_selection:{decision.get('selection', 'unknown')}"],
+            "files_to_change": [item["path"] for item in ambiguity_patch.get("files", [])],
+        }
         if build.get("returncode") == 0 and not concerns:
-            decision = ambiguity.get("decision") or {}
-            diagnosis = {
-                "root_cause_class": ambiguity.get("root_cause_class", "model_ref_renamed"),
-                "hypothesis": "A missing dependency had multiple observed candidates; a bounded agent selected the documented current model.",
-                "evidence": list(decision.get("evidence") or [])
-                + [f"agent_selection:{decision.get('selection', 'unknown')}"],
-                "files_to_change": [item["path"] for item in ambiguity_patch.get("files", [])],
-            }
             return _result(
                 model=model,
                 started=started,
@@ -218,26 +229,26 @@ def run_v4(
                 diagnosis=diagnosis,
             )
 
-    # Last resort: open-ended contract-guided coding agent. This remains bounded and is
-    # only used after deterministic skills and the narrow ambiguity resolver fail.
-    fallback = run_v3(root, incident, model, max_model_calls=max_model_calls)
-    fallback_diagnosis = fallback.get("diagnosis") or {}
-    if skill_prediction != "unknown":
-        fallback_diagnosis = dict(fallback_diagnosis)
-        fallback_diagnosis.setdefault("skill_root_cause_class", skill_prediction)
-
-    trajectory.extend(fallback.get("trajectory") or [])
-    return {
-        "system": "driftdoctor-v0.5-selective-agency",
-        "model": model,
-        "model_calls": ambiguity_calls + int(fallback.get("model_calls", 0)),
-        "elapsed_seconds": round(time.monotonic() - started, 3),
-        "diagnosis": fallback_diagnosis,
-        "skill_root_cause_class": skill_prediction,
-        "final_build": fallback.get("final_build"),
-        "remaining_contract_concerns": fallback.get("remaining_contract_concerns") or [],
-        "skills": skills,
-        "fallback_used": True,
-        "fallback_mode": "contract_guided_coding_agent",
-        "trajectory": trajectory,
-    }
+    trajectory.append(
+        {
+            "stage": "human_escalation",
+            "reason": (
+                ambiguity.get("reason")
+                or "No verified bounded repair was available; open-ended autonomous editing is intentionally disabled."
+            ),
+        }
+    )
+    return _result(
+        model=model,
+        started=started,
+        prediction=skill_prediction,
+        skills=skills,
+        files=skill_patch.get("files", []),
+        build=build,
+        concerns=concerns,
+        trajectory=trajectory,
+        model_calls=ambiguity_calls,
+        fallback_used=ambiguity_calls > 0,
+        fallback_mode="bounded_ambiguity_resolver" if ambiguity_calls else None,
+        escalation_required=True,
+    )
