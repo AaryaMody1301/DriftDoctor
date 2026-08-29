@@ -28,34 +28,45 @@ Do not invent hidden requirements.'''
 
 def run_driftdoctor(root: Path, incident: str, model: str, max_steps: int = 14, max_retries: int = 2, command_timeout: int = 90) -> dict:
     root = root.resolve()
-    evidence = collect_evidence(root)
+    initial_evidence = collect_evidence(root)
     messages = [
         {"role": "system", "content": SYSTEM},
-        {"role": "user", "content": f"Incident:\n{incident}\n\nStructured evidence:\n{compact_evidence(evidence)}\n\nStart with a root-cause hypothesis, then repair."},
+        {"role": "user", "content": f"Incident:\n{incident}\n\nStructured evidence:\n{compact_evidence(initial_evidence)}\n\nStart with a root-cause hypothesis, then repair."},
     ]
     trajectory = []
     final = None
+    final_evidence = initial_evidence
     started = time.monotonic()
     retries = 0
+    model_calls = 0
+    index = 0
 
-    for index in range(1, max_steps + 1):
+    while model_calls < max_steps:
+        index += 1
         text = _chat(model, messages)
+        model_calls += 1
         action = _json_action(text)
         if action.get("action") == "final":
             latest = collect_evidence(root)
+            final_evidence = latest
+            if model_calls >= max_steps:
+                trajectory.append({"index": index, "type": "final", "model_output": text, "action": action, "review": {"verdict": "budget_exhausted"}})
+                final = action
+                break
+
             review_text = _chat(model, [
                 {"role": "system", "content": REVIEW},
                 {"role": "user", "content": f"Incident:\n{incident}\n\nLatest evidence:\n{compact_evidence(latest)}\n\nAgent final:\n{json.dumps(action)}"},
             ])
+            model_calls += 1
             review = _json_action(review_text)
             trajectory.append({"index": index, "type": "final_review", "model_output": text, "action": action, "review_output": review_text, "review": review})
-            if review.get("verdict") == "retry" and retries < max_retries:
+            if review.get("verdict") == "retry" and retries < max_retries and model_calls < max_steps:
                 retries += 1
                 messages.append({"role": "assistant", "content": text})
                 messages.append({"role": "user", "content": "Verifier requested another attempt: " + str(review.get("reason")) + "\nFocus: " + str(review.get("suggested_focus"))})
                 continue
             final = action
-            evidence = latest
             break
 
         observation = _observe(root, action, command_timeout)
@@ -66,11 +77,13 @@ def run_driftdoctor(root: Path, incident: str, model: str, max_steps: int = 14, 
     return {
         "system": "driftdoctor-v0.1",
         "model": model,
-        "max_steps": max_steps,
+        "max_model_calls": max_steps,
+        "model_calls": model_calls,
         "max_retries": max_retries,
         "retries": retries,
         "elapsed_seconds": round(time.monotonic() - started, 3),
-        "initial_evidence": evidence,
+        "initial_evidence": initial_evidence,
+        "final_evidence": final_evidence,
         "final": final,
         "steps": trajectory,
     }
