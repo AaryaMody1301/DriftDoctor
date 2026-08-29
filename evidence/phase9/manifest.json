@@ -1,0 +1,38 @@
+{
+  "workflow_run_id": 33259014887,
+  "evaluation_head_sha": "33caefca6a5a003090edea1ba6cc5d3cc0bd2dbc",
+  "primary_regression": {
+    "system": "driftdoctor-v0.5-selective-agency",
+    "context_version": "0.2",
+    "expected_cases": 12,
+    "scored_cases": 12,
+    "solved": 12,
+    "verified_resolution_rate": 1.0,
+    "root_cause_correct": 12,
+    "model_calls": 0,
+    "agent_cases": 0,
+    "escalation_cases": 0,
+    "mean_elapsed_seconds": 6.640333333333333,
+    "artifact_id": 9716719953,
+    "artifact_digest": "sha256:e41106ab0169566e8492bd0d125956f8cc9d59323aa8071c61ddcc2946753d78",
+    "checked_in_summary_sha256": "cb0ac924f2f09ab49327a6399ce6ae2d28df09aa8d96d9a08ab8230306847040"
+  },
+  "representative_agent_trajectory": {
+    "case": "held-out-ambiguous-ref",
+    "part_of_primary_vrr": false,
+    "skills_only_build_returncode": 2,
+    "skills_only_escalation_required": true,
+    "agent_result_passed": true,
+    "model": "qwen2.5-coder:1.5b",
+    "ollama_version": "0.33.2",
+    "model_id": "d7372fd82851",
+    "model_calls": 1,
+    "fallback_mode": "bounded_ambiguity_resolver",
+    "selected_candidate": "stg_orders_v2",
+    "elapsed_seconds": 19.89,
+    "artifact_id": 9716761142,
+    "artifact_digest": "sha256:77a7807842b16193afa23385bbc216794ec382d78e8b2c487d82f53791fc5c4a",
+    "checked_in_record_sha256": "a94217dcb8113c4ce638eb5f49c4d7d3695a443d256888ac5e9853c37d1be797"
+  },
+  "claim_boundary": "The held-out agent trajectory demonstrates the bounded agent role but is not folded into the frozen 12-case primary VRR."
+}
