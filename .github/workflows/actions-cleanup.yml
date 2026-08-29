@@ -1,6 +1,11 @@
 name: actions-cleanup
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/actions-cleanup.yml"
   workflow_dispatch:
     inputs:
       keep_run_id:
@@ -26,6 +31,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
           CURRENT_RUN_ID: ${{ github.run_id }}
+          CURRENT_SHA: ${{ github.sha }}
           KEEP_RUN_ID: ${{ inputs.keep_run_id }}
         run: |
           python - <<'PY'
@@ -37,6 +43,7 @@ jobs:
           repo = os.environ["GH_REPOSITORY"]
           token = os.environ["GH_TOKEN"]
           current_run = int(os.environ["CURRENT_RUN_ID"])
+          current_sha = os.environ["CURRENT_SHA"]
           keep_raw = os.environ.get("KEEP_RUN_ID", "").strip()
           keep_run = int(keep_raw) if keep_raw else None
           headers = {
@@ -67,7 +74,7 @@ jobs:
               )
               for run in data.get("workflow_runs", []):
                   run_id = int(run["id"])
-                  if run_id in {current_run, keep_run}:
+                  if run_id in {current_run, keep_run} or run.get("head_sha") == current_sha:
                       continue
                   code = post(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/cancel")
                   if code == 202:
