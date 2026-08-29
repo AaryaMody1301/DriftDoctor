@@ -1,13 +1,14 @@
 name: benchmark-smoke
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: benchmark-smoke-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
