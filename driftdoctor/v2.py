@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -55,7 +56,23 @@ REVIEW_SCHEMA = {
 }
 
 
-def _chat(model: str, messages: list[dict], schema: dict, timeout: int = 240) -> dict:
+class InferenceTransportError(RuntimeError):
+    """Raised when local Ollama inference does not return after bounded retries."""
+
+
+def _chat(
+    model: str,
+    messages: list[dict],
+    schema: dict,
+    timeout: int = 600,
+    transport_retries: int = 1,
+) -> dict:
+    """Run one logical model call with bounded transport-only retry.
+
+    A retry is used only when the local HTTP transport times out/fails before a
+    response is received. It does not alter prompts, schemas, temperature, or
+    the logical model-call budget used by the experiment.
+    """
     payload = json.dumps({
         "model": model,
         "messages": messages,
@@ -63,14 +80,28 @@ def _chat(model: str, messages: list[dict], schema: dict, timeout: int = 240) ->
         "format": schema,
         "options": {"temperature": 0},
     }).encode()
-    req = urllib.request.Request(
-        os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat"),
-        data=payload,
-        headers={"Content-Type": "application/json"},
+    url = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
+    last_error: Exception | None = None
+
+    for attempt in range(transport_retries + 1):
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                data = json.load(response)
+            return json.loads(data["message"]["content"])
+        except (TimeoutError, urllib.error.URLError) as exc:
+            last_error = exc
+            if attempt >= transport_retries:
+                break
+            time.sleep(2)
+
+    raise InferenceTransportError(
+        f"local inference transport failed after {transport_retries + 1} attempts: {last_error}"
     )
-    with urllib.request.urlopen(req, timeout=timeout) as response:
-        data = json.load(response)
-    return json.loads(data["message"]["content"])
 
 
 def _business_context(root: Path) -> str:
