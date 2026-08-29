@@ -1,0 +1,101 @@
+{
+  "case_results": [
+    {
+      "case_id": "DD-001",
+      "elapsed_seconds": 172.976,
+      "model_calls": 3,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-002",
+      "elapsed_seconds": 201.955,
+      "model_calls": 3,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-003",
+      "elapsed_seconds": 172.944,
+      "model_calls": 3,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-004",
+      "elapsed_seconds": 45.76,
+      "model_calls": 2,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-005",
+      "elapsed_seconds": 192.101,
+      "model_calls": 3,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-006",
+      "elapsed_seconds": 84.769,
+      "model_calls": 2,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-007",
+      "elapsed_seconds": 194.361,
+      "model_calls": 3,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-008",
+      "elapsed_seconds": 645.619,
+      "model_calls": 2,
+      "passed": false,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-009",
+      "elapsed_seconds": 88.528,
+      "model_calls": 2,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-010",
+      "elapsed_seconds": 150.271,
+      "model_calls": 3,
+      "passed": false,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-011",
+      "elapsed_seconds": 79.123,
+      "model_calls": 2,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-012",
+      "elapsed_seconds": 194.094,
+      "model_calls": 3,
+      "passed": false,
+      "root_cause_correct": false
+    }
+  ],
+  "complete": true,
+  "context_version": "0.2",
+  "expected_cases": 12,
+  "infrastructure_errors": [],
+  "mean_elapsed_seconds": 185.2084166666667,
+  "mean_model_calls": 2.5833333333333335,
+  "model": "qwen2.5-coder:1.5b",
+  "root_cause_accuracy": 0.25,
+  "root_cause_correct": 3,
+  "scored_cases": 12,
+  "solved": 1,
+  "system": "driftdoctor-no-review",
+  "verified_resolution_rate": 0.08333333333333333
+}

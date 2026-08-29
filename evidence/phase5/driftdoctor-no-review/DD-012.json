@@ -1,0 +1,133 @@
+{
+  "case_id": "DD-012",
+  "context_version": "0.2",
+  "diff": "diff --git a/models/stg_customer_revenue.sql b/models/stg_customer_revenue.sql\nindex a2c8067..cc663dc 100644\n--- a/models/stg_customer_revenue.sql\n+++ b/models/stg_customer_revenue.sql\n@@ -1,5 +1,5 @@\n select\n     customer_id,\n-    customer_name,\n+    client_name,\n     revenue_text * 1.0 as revenue_amount\n from {{ source('raw', 'raw_customer_revenue') }}\n",
+  "elapsed_seconds": 194.094,
+  "incident": "A customer revenue mart fails after an upstream migration. More than one independent upstream change is present. Diagnose all causal faults and restore the mart without masking invalid source data.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 3,
+  "oracle": {
+    "case_id": "DD-012",
+    "checks": [
+      {
+        "detail": "returncode=1",
+        "name": "dbt_build_succeeds",
+        "passed": false
+      },
+      {
+        "detail": "query error: Catalog Error: Table with name mart_customer_revenue does not exist!\nDid you mean \"raw.raw_customer_revenue\"?\n\nLINE 1: select customer_id, customer_name, revenue_amount from analytics.mart_customer_revenue order by customer_id\n                                                               ^",
+        "name": "multi_fault_output_contract",
+        "passed": false
+      },
+      {
+        "detail": "query error: Catalog Error: Table with name mart_customer_revenue does not exist!\nDid you mean \"raw.raw_customer_revenue\"?\n\nLINE 1: select count(*) from analytics.mart_customer_revenue where customer_id = 2 and...\n                             ^",
+        "name": "invalid_source_value_handled_explicitly",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 1,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m06:01:01  Running with dbt=1.11.14\n\u001b[0m06:01:01  Registered adapter: duckdb=1.11.0\n\u001b[0m06:01:01  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m06:01:01  \n\u001b[0m06:01:01  Concurrency: 1 threads (target='dev')\n\u001b[0m06:01:01  \n\u001b[0m06:01:01  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m06:01:01  1 of 4 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m06:01:01  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:01:01  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:01:01  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:01:01  \n\u001b[0m06:01:01  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m06:01:02  \n\u001b[0m06:01:02  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m06:01:02  \n\u001b[0m06:01:02  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m06:01:02    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Binder Error: No function matches the given name and argument types '*(VARCHAR, DECIMAL(2,1))'. You might need to add explicit type casts.\n  \tCandidate functions:\n  \t*(TINYINT, TINYINT) -> TINYINT\n  \t*(SMALLINT, SMALLINT) -> SMALLINT\n  \t*(INTEGER, INTEGER) -> INTEGER\n  \t*(BIGINT, BIGINT) -> BIGINT\n  \t*(HUGEINT, HUGEINT) -> HUGEINT\n  \t*(FLOAT, FLOAT) -> FLOAT\n  \t*(DOUBLE, DOUBLE) -> DOUBLE\n  \t*(DECIMAL, DECIMAL) -> DECIMAL\n  \t*(UTINYINT, UTINYINT) -> UTINYINT\n  \t*(USMALLINT, USMALLINT) -> USMALLINT\n  \t*(UINTEGER, UINTEGER) -> UINTEGER\n  \t*(UBIGINT, UBIGINT) -> UBIGINT\n  \t*(UHUGEINT, UHUGEINT) -> UHUGEINT\n  \t*(INTERVAL, DOUBLE) -> INTERVAL\n  \t*(DOUBLE, INTERVAL) -> INTERVAL\n  \t*(BIGINT, INTERVAL) -> INTERVAL\n  \t*(INTERVAL, BIGINT) -> INTERVAL\n  \n  \n  LINE 13:     revenue_text * 1.0 as revenue_amount\n                            ^\n\u001b[0m06:01:02  \n\u001b[0m06:01:02    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m06:01:02  \n\u001b[0m06:01:02  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-no-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The error message indicates that the model is trying to reference the 'customer_name' column, but it cannot find it in the FROM clause."
+      ],
+      "files_to_change": [
+        "models/stg_customer_revenue.sql",
+        "models/schema.yml"
+      ],
+      "hypothesis": "The upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name 'customer_name' in the SQL query.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 194.094,
+    "final_build": {
+      "returncode": 1,
+      "stderr": "",
+      "stdout": "\u001b[0m06:00:58  Running with dbt=1.11.14\n\u001b[0m06:00:58  Registered adapter: duckdb=1.11.0\n\u001b[0m06:00:58  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m06:00:58  \n\u001b[0m06:00:58  Concurrency: 1 threads (target='dev')\n\u001b[0m06:00:58  \n\u001b[0m06:00:58  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m06:00:58  1 of 4 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.07s]\n\u001b[0m06:00:58  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:00:58  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:00:58  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:00:58  \n\u001b[0m06:00:58  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m06:00:59  \n\u001b[0m06:00:59  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m06:00:59  \n\u001b[0m06:00:59  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m06:00:59    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Binder Error: No function matches the given name and argument types '*(VARCHAR, DECIMAL(2,1))'. You might need to add explicit type casts.\n  \tCandidate functions:\n  \t*(TINYINT, TINYINT) -> TINYINT\n  \t*(SMALLINT, SMALLINT) -> SMALLINT\n  \t*(INTEGER, INTEGER) -> INTEGER\n  \t*(BIGINT, BIGINT) -> BIGINT\n  \t*(HUGEINT, HUGEINT) -> HUGEINT\n  \t*(FLOAT, FLOAT) -> FLOAT\n  \t*(DOUBLE, DOUBLE) -> DOUBLE\n  \t*(DECIMAL, DECIMAL) -> DECIMAL\n  \t*(UTINYINT, UTINYINT) -> UTINYINT\n  \t*(USMALLINT, USMALLINT) -> USMALLINT\n  \t*(UINTEGER, UINTEGER) -> UINTEGER\n  \t*(UBIGINT, UBIGINT) -> UBIGINT\n  \t*(UHUGEINT, UHUGEINT) -> UHUGEINT\n  \t*(INTERVAL, DOUBLE) -> INTERVAL\n  \t*(DOUBLE, INTERVAL) -> INTERVAL\n  \t*(BIGINT, INTERVAL) -> INTERVAL\n  \t*(INTERVAL, BIGINT) -> INTERVAL\n  \n  \n  LINE 13:     revenue_text * 1.0 as revenue_amount\n                            ^\n\u001b[0m06:00:59  \n\u001b[0m06:00:59    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m06:00:59  \n\u001b[0m06:00:59  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 3,
+    "semantic_retries": 0,
+    "system": "driftdoctor-v0.2-no-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The error message indicates that the model is trying to reference the 'customer_name' column, but it cannot find it in the FROM clause."
+          ],
+          "files_to_change": [
+            "models/stg_customer_revenue.sql",
+            "models/schema.yml"
+          ],
+          "hypothesis": "The upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name 'customer_name' in the SQL query.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_customer_revenue.sql"
+          },
+          {
+            "applied": false,
+            "path": "models/schema.yml",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m05:59:25  Running with dbt=1.11.14\n\u001b[0m05:59:25  Registered adapter: duckdb=1.11.0\n\u001b[0m05:59:26  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:59:26  \n\u001b[0m05:59:26  Concurrency: 1 threads (target='dev')\n\u001b[0m05:59:26  \n\u001b[0m05:59:26  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m05:59:26  1 of 4 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:59:26  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:59:26  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:59:26  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:59:26  \n\u001b[0m05:59:26  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.19 seconds (0.19s).\n\u001b[0m05:59:26  \n\u001b[0m05:59:26  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:59:26  \n\u001b[0m05:59:26  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m05:59:26    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Binder Error: No function matches the given name and argument types '*(VARCHAR, DECIMAL(2,1))'. You might need to add explicit type casts.\n  \tCandidate functions:\n  \t*(TINYINT, TINYINT) -> TINYINT\n  \t*(SMALLINT, SMALLINT) -> SMALLINT\n  \t*(INTEGER, INTEGER) -> INTEGER\n  \t*(BIGINT, BIGINT) -> BIGINT\n  \t*(HUGEINT, HUGEINT) -> HUGEINT\n  \t*(FLOAT, FLOAT) -> FLOAT\n  \t*(DOUBLE, DOUBLE) -> DOUBLE\n  \t*(DECIMAL, DECIMAL) -> DECIMAL\n  \t*(UTINYINT, UTINYINT) -> UTINYINT\n  \t*(USMALLINT, USMALLINT) -> USMALLINT\n  \t*(UINTEGER, UINTEGER) -> UINTEGER\n  \t*(UBIGINT, UBIGINT) -> UBIGINT\n  \t*(UHUGEINT, UHUGEINT) -> UHUGEINT\n  \t*(INTERVAL, DOUBLE) -> INTERVAL\n  \t*(DOUBLE, INTERVAL) -> INTERVAL\n  \t*(BIGINT, INTERVAL) -> INTERVAL\n  \t*(INTERVAL, BIGINT) -> INTERVAL\n  \n  \n  LINE 13:     revenue_text * 1.0 as revenue_amount\n                            ^\n\u001b[0m05:59:26  \n\u001b[0m05:59:26    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m05:59:26  \n\u001b[0m05:59:26  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the model is trying to reference the 'customer_name' column, but it cannot find it in the FROM clause. This is because the upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name 'customer_name' in the SQL query.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    client_name,\n    revenue_text * 1.0 as revenue_amount\nfrom {{ source('raw', 'raw_customer_revenue') }}\n",
+              "path": "models/stg_customer_revenue.sql"
+            },
+            {
+              "content": "version: 2\nmodels:\n  - name: mart_customer_revenue\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n",
+              "path": "models/schema.yml"
+            }
+          ]
+        },
+        "stage": "patch"
+      },
+      {
+        "applied": [
+          {
+            "applied": false,
+            "path": "models/stg_customer_revenue.sql",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m06:00:58  Running with dbt=1.11.14\n\u001b[0m06:00:58  Registered adapter: duckdb=1.11.0\n\u001b[0m06:00:58  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m06:00:58  \n\u001b[0m06:00:58  Concurrency: 1 threads (target='dev')\n\u001b[0m06:00:58  \n\u001b[0m06:00:58  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m06:00:58  1 of 4 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.07s]\n\u001b[0m06:00:58  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:00:58  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:00:58  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m06:00:58  \n\u001b[0m06:00:58  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m06:00:59  \n\u001b[0m06:00:59  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m06:00:59  \n\u001b[0m06:00:59  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m06:00:59    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Binder Error: No function matches the given name and argument types '*(VARCHAR, DECIMAL(2,1))'. You might need to add explicit type casts.\n  \tCandidate functions:\n  \t*(TINYINT, TINYINT) -> TINYINT\n  \t*(SMALLINT, SMALLINT) -> SMALLINT\n  \t*(INTEGER, INTEGER) -> INTEGER\n  \t*(BIGINT, BIGINT) -> BIGINT\n  \t*(HUGEINT, HUGEINT) -> HUGEINT\n  \t*(FLOAT, FLOAT) -> FLOAT\n  \t*(DOUBLE, DOUBLE) -> DOUBLE\n  \t*(DECIMAL, DECIMAL) -> DECIMAL\n  \t*(UTINYINT, UTINYINT) -> UTINYINT\n  \t*(USMALLINT, USMALLINT) -> USMALLINT\n  \t*(UINTEGER, UINTEGER) -> UINTEGER\n  \t*(UBIGINT, UBIGINT) -> UBIGINT\n  \t*(UHUGEINT, UHUGEINT) -> UHUGEINT\n  \t*(INTERVAL, DOUBLE) -> INTERVAL\n  \t*(DOUBLE, INTERVAL) -> INTERVAL\n  \t*(BIGINT, INTERVAL) -> INTERVAL\n  \t*(INTERVAL, BIGINT) -> INTERVAL\n  \n  \n  LINE 13:     revenue_text * 1.0 as revenue_amount\n                            ^\n\u001b[0m06:00:59  \n\u001b[0m06:00:59    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m06:00:59  \n\u001b[0m06:00:59  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the model is trying to reference the 'customer_name' column, but it cannot find it in the FROM clause. This is because the upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name 'customer_name' in the SQL query.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    client_name,\n    revenue_text * 1.0 as revenue_amount\nfrom {{ source('raw', 'raw_customer_revenue') }}\n",
+              "path": "models/stg_customer_revenue.sql"
+            }
+          ]
+        },
+        "stage": "build_retry"
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "evidence_version": "1.0",
+  "selected_system": "driftdoctor-no-review",
+  "selection_reason": "Highest publishable matched-context VRR among complete Phase 5 DriftDoctor arms. Semantic-review recovery remained incomplete and is excluded from VRR claims.",
+  "matched_context_run": {
+    "run_id": 33236007203,
+    "head_sha": "a135e543b6feb15a6003a73aabfdc54b5f37d256",
+    "context_baseline_artifact": {
+      "artifact_id": 9710042859,
+      "digest": "sha256:a06ca03f1aee528452330d2623a223bd9af59b9a9954cc030113572fa62582ba"
+    },
+    "driftdoctor_no_review_artifact": {
+      "artifact_id": 9710336456,
+      "digest": "sha256:78460ce0c8faf27dea867e7d28d98cd33fbe67ae165aaf273dacf2778754f579"
+    }
+  },
+  "semantic_review_recovery": {
+    "run_id": 33245124108,
+    "head_sha": "c0446945f17ffeef1bace8cd6a98646ba0db6b50",
+    "aggregate_artifact_id": 9714018483,
+    "aggregate_digest": "sha256:13944df04ae102035734cbc7d5377ab9cb649120528af30c7fa792ac240f5991",
+    "complete": false,
+    "scored_cases": 7,
+    "expected_cases": 12
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "case_id": "DD-001",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 6f1838b..3c21274 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/mart_customer_revenue.sql b/models/mart_customer_revenue.sql\nindex 6a3e197..b557590 100644\n--- a/models/mart_customer_revenue.sql\n+++ b/models/mart_customer_revenue.sql\n@@ -1,5 +1 @@\n-select\n-    customer_id,\n-    customer_name,\n-    revenue_amount\n-from {{ ref('stg_customers') }}\n+select customer_id, full_name, revenue_amount from {{ source('raw', 'raw_customers') }}\n\\ No newline at end of file\ndiff --git a/models/schema.yml b/models/schema.yml\nindex eab8e06..e014b53 100644\n--- a/models/schema.yml\n+++ b/models/schema.yml\n@@ -4,3 +4,5 @@ models:\n     columns:\n       - name: customer_id\n         data_tests: [unique, not_null]\n+      - name: customer_name\n+        data_tests: [unique, not_null]\n\\ No newline at end of file\ndiff --git a/models/stg_customers.sql b/models/stg_customers.sql\nindex 2b51bcc..a827464 100644\n--- a/models/stg_customers.sql\n+++ b/models/stg_customers.sql\n@@ -1,5 +1,5 @@\n select\n     customer_id,\n-    customer_name,\n+    full_name,\n     revenue_amount\n from {{ source('raw', 'raw_customers') }}\n",
+  "elapsed_seconds": 220.088,
+  "incident": "The customer revenue pipeline started failing after an upstream schema change. Diagnose the failure and restore the project without changing the intended output contract.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 4,
+  "oracle": {
+    "case_id": "DD-001",
+    "checks": [
+      {
+        "detail": "returncode=1",
+        "name": "dbt_build_succeeds",
+        "passed": false
+      },
+      {
+        "detail": "['customer_id', 'full_name', 'revenue_amount']",
+        "name": "downstream_contract_preserved",
+        "passed": false
+      },
+      {
+        "detail": "query error: Binder Error: Referenced column \"customer_name\" not found in FROM clause!\nCandidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n\nLINE 1: select customer_id, customer_name, revenue_amount from analytics.mart_customer_...\n                            ^",
+        "name": "renamed_source_field_regression",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 1,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m09:24:27  Running with dbt=1.11.14\n\u001b[0m09:24:27  Registered adapter: duckdb=1.11.0\n\u001b[0m09:24:28  Found 2 models, 4 data tests, 1 source, 500 macros\n\u001b[0m09:24:28  \n\u001b[0m09:24:28  Concurrency: 1 threads (target='dev')\n\u001b[0m09:24:28  \n\u001b[0m09:24:28  1 of 6 START sql table model analytics.mart_customer_revenue ................... [RUN]\n\u001b[0m09:24:28  1 of 6 OK created sql table model analytics.mart_customer_revenue .............. [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m09:24:28  2 of 6 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m09:24:28  2 of 6 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m09:24:28  3 of 6 START test not_null_mart_customer_revenue_customer_id ................... [RUN]\n\u001b[0m09:24:28  3 of 6 PASS not_null_mart_customer_revenue_customer_id ......................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m09:24:28  4 of 6 START test not_null_mart_customer_revenue_customer_name ................. [RUN]\n\u001b[0m09:24:28  4 of 6 ERROR not_null_mart_customer_revenue_customer_name ...................... [\u001b[31mERROR\u001b[0m in 0.02s]\n\u001b[0m09:24:28  5 of 6 START test unique_mart_customer_revenue_customer_id ..................... [RUN]\n\u001b[0m09:24:28  5 of 6 PASS unique_mart_customer_revenue_customer_id ........................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m09:24:28  6 of 6 START test unique_mart_customer_revenue_customer_name ................... [RUN]\n\u001b[0m09:24:28  6 of 6 ERROR unique_mart_customer_revenue_customer_name ........................ [\u001b[31mERROR\u001b[0m in 0.02s]\n\u001b[0m09:24:28  \n\u001b[0m09:24:28  Finished running 2 table models, 4 data tests in 0 hours 0 minutes and 0.37 seconds (0.37s).\n\u001b[0m09:24:28  \n\u001b[0m09:24:28  \u001b[31mCompleted with 2 errors, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:24:28  \n\u001b[0m09:24:28  \u001b[31mFailure in test not_null_mart_customer_revenue_customer_name (models/schema.yml)\u001b[0m\n\u001b[0m09:24:28    Runtime Error in test not_null_mart_customer_revenue_customer_name (models/schema.yml)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 19: where customer_name is null\n                 ^\n\u001b[0m09:24:28  \n\u001b[0m09:24:28    compiled code at target/compiled/driftdoctor_case/models/schema.yml/not_null_mart_customer_revenue_customer_name.sql\n\u001b[0m09:24:28  \n\u001b[0m09:24:28  \u001b[31mFailure in test unique_mart_customer_revenue_customer_name (models/schema.yml)\u001b[0m\n\u001b[0m09:24:28    Runtime Error in test unique_mart_customer_revenue_customer_name (models/schema.yml)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 20: where customer_name is not null\n                 ^\n\u001b[0m09:24:28  \n\u001b[0m09:24:28    compiled code at target/compiled/driftdoctor_case/models/schema.yml/unique_mart_customer_revenue_customer_name.sql\n\u001b[0m09:24:28  \n\u001b[0m09:24:28  Done. PASS=4 WARN=0 ERROR=2 SKIP=0 NO-OP=0 TOTAL=6\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database."
+      ],
+      "files_to_change": [
+        "models/stg_customers.sql",
+        "models/schema.yml",
+        "models/sources.yml",
+        "models/mart_customer_revenue.sql"
+      ],
+      "hypothesis": "The upstream schema change renamed the human-readable customer field, but downstream names must remain stable. This caused the model to fail to find the referenced column 'customer_name' in the FROM clause.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 220.088,
+    "final_build": {
+      "returncode": 1,
+      "stderr": "",
+      "stdout": "\u001b[0m09:24:24  Running with dbt=1.11.14\n\u001b[0m09:24:24  Registered adapter: duckdb=1.11.0\n\u001b[0m09:24:25  Found 2 models, 4 data tests, 1 source, 500 macros\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  Concurrency: 1 threads (target='dev')\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  1 of 6 START sql table model analytics.mart_customer_revenue ................... [RUN]\n\u001b[0m09:24:25  1 of 6 OK created sql table model analytics.mart_customer_revenue .............. [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m09:24:25  2 of 6 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m09:24:25  2 of 6 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m09:24:25  3 of 6 START test not_null_mart_customer_revenue_customer_id ................... [RUN]\n\u001b[0m09:24:25  3 of 6 PASS not_null_mart_customer_revenue_customer_id ......................... [\u001b[32mPASS\u001b[0m in 0.05s]\n\u001b[0m09:24:25  4 of 6 START test not_null_mart_customer_revenue_customer_name ................. [RUN]\n\u001b[0m09:24:25  4 of 6 ERROR not_null_mart_customer_revenue_customer_name ...................... [\u001b[31mERROR\u001b[0m in 0.02s]\n\u001b[0m09:24:25  5 of 6 START test unique_mart_customer_revenue_customer_id ..................... [RUN]\n\u001b[0m09:24:25  5 of 6 PASS unique_mart_customer_revenue_customer_id ........................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m09:24:25  6 of 6 START test unique_mart_customer_revenue_customer_name ................... [RUN]\n\u001b[0m09:24:25  6 of 6 ERROR unique_mart_customer_revenue_customer_name ........................ [\u001b[31mERROR\u001b[0m in 0.02s]\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  Finished running 2 table models, 4 data tests in 0 hours 0 minutes and 0.38 seconds (0.38s).\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  \u001b[31mCompleted with 2 errors, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  \u001b[31mFailure in test not_null_mart_customer_revenue_customer_name (models/schema.yml)\u001b[0m\n\u001b[0m09:24:25    Runtime Error in test not_null_mart_customer_revenue_customer_name (models/schema.yml)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 19: where customer_name is null\n                 ^\n\u001b[0m09:24:25  \n\u001b[0m09:24:25    compiled code at target/compiled/driftdoctor_case/models/schema.yml/not_null_mart_customer_revenue_customer_name.sql\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  \u001b[31mFailure in test unique_mart_customer_revenue_customer_name (models/schema.yml)\u001b[0m\n\u001b[0m09:24:25    Runtime Error in test unique_mart_customer_revenue_customer_name (models/schema.yml)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 20: where customer_name is not null\n                 ^\n\u001b[0m09:24:25  \n\u001b[0m09:24:25    compiled code at target/compiled/driftdoctor_case/models/schema.yml/unique_mart_customer_revenue_customer_name.sql\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  Done. PASS=4 WARN=0 ERROR=2 SKIP=0 NO-OP=0 TOTAL=6\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 4,
+    "semantic_retries": 1,
+    "system": "driftdoctor-v0.2-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database."
+          ],
+          "files_to_change": [
+            "models/stg_customers.sql",
+            "models/schema.yml",
+            "models/sources.yml",
+            "models/mart_customer_revenue.sql"
+          ],
+          "hypothesis": "The upstream schema change renamed the human-readable customer field, but downstream names must remain stable. This caused the model to fail to find the referenced column 'customer_name' in the FROM clause.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_customers.sql"
+          },
+          {
+            "applied": false,
+            "path": "models/schema.yml",
+            "reason": "no change"
+          },
+          {
+            "applied": false,
+            "path": "models/sources.yml",
+            "reason": "no change"
+          },
+          {
+            "applied": true,
+            "path": "models/mart_customer_revenue.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m09:22:25  Running with dbt=1.11.14\n\u001b[0m09:22:26  Registered adapter: duckdb=1.11.0\n\u001b[0m09:22:27  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m09:22:27  \n\u001b[0m09:22:27  Concurrency: 1 threads (target='dev')\n\u001b[0m09:22:27  \n\u001b[0m09:22:27  1 of 4 START sql table model analytics.mart_customer_revenue ................... [RUN]\n\u001b[0m09:22:27  1 of 4 OK created sql table model analytics.mart_customer_revenue .............. [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m09:22:27  2 of 4 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m09:22:27  2 of 4 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m09:22:27  3 of 4 START test not_null_mart_customer_revenue_customer_id ................... [RUN]\n\u001b[0m09:22:27  3 of 4 PASS not_null_mart_customer_revenue_customer_id ......................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m09:22:27  4 of 4 START test unique_mart_customer_revenue_customer_id ..................... [RUN]\n\u001b[0m09:22:27  4 of 4 PASS unique_mart_customer_revenue_customer_id ........................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m09:22:27  \n\u001b[0m09:22:27  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.30 seconds (0.30s).\n\u001b[0m09:22:27  \n\u001b[0m09:22:27  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:22:27  \n\u001b[0m09:22:27  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The upstream schema change renamed the human-readable customer field, but downstream names must remain stable. This caused the model to fail to find the referenced column 'customer_name' in the FROM clause.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    full_name,\n    revenue_amount\nfrom {{ source('raw', 'raw_customers') }}\n",
+              "path": "models/stg_customers.sql"
+            },
+            {
+              "content": "version: 2\nmodels:\n  - name: mart_customer_revenue\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n",
+              "path": "models/schema.yml"
+            },
+            {
+              "content": "version: 2\n\nsources:\n  - name: raw\n    schema: raw\n    tables:\n      - name: raw_customers\n",
+              "path": "models/sources.yml"
+            },
+            {
+              "content": "select\n    customer_id,\n    full_name,\n    revenue_amount\nfrom {{ source('raw', 'raw_customers') }}\n",
+              "path": "models/mart_customer_revenue.sql"
+            }
+          ]
+        },
+        "stage": "patch"
+      },
+      {
+        "output": {
+          "reason": "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database. The current evidence shows that the model is trying to access the column 'customer_id' instead, which is a different column in the database. To resolve this issue, the model should be updated to access the correct column 'customer_name'. The files to change are `models/mart_customer_revenue.sql` and `models/schema.yml` to update the column name in the model and the schema file, respectively. The updated model should look like this: `select customer_id, full_name, revenue_amount from {{ source('raw', 'raw_customers') }}`, and the updated schema file should look like this: `version: 2\nmodels:\n  - name: mart_customer_revenue\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n      - name: customer_name\n        data_tests: [unique, not_null]`, and the updated source file should look like this: `version: 2\n\nsources:\n  - name: raw_customers\n    schema: raw\n    tables:\n      - name: raw_customers\n        columns:\n          - name: customer_id\n            data_tests: [unique, not_null]\n          - name: customer_name\n            data_tests: [unique, not_null]`.",
+          "suggested_focus": "Update the model to access the correct column 'customer_name' in the FROM clause.",
+          "verdict": "retry"
+        },
+        "stage": "semantic_review"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/mart_customer_revenue.sql"
+          },
+          {
+            "applied": true,
+            "path": "models/schema.yml"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m09:24:24  Running with dbt=1.11.14\n\u001b[0m09:24:24  Registered adapter: duckdb=1.11.0\n\u001b[0m09:24:25  Found 2 models, 4 data tests, 1 source, 500 macros\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  Concurrency: 1 threads (target='dev')\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  1 of 6 START sql table model analytics.mart_customer_revenue ................... [RUN]\n\u001b[0m09:24:25  1 of 6 OK created sql table model analytics.mart_customer_revenue .............. [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m09:24:25  2 of 6 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m09:24:25  2 of 6 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m09:24:25  3 of 6 START test not_null_mart_customer_revenue_customer_id ................... [RUN]\n\u001b[0m09:24:25  3 of 6 PASS not_null_mart_customer_revenue_customer_id ......................... [\u001b[32mPASS\u001b[0m in 0.05s]\n\u001b[0m09:24:25  4 of 6 START test not_null_mart_customer_revenue_customer_name ................. [RUN]\n\u001b[0m09:24:25  4 of 6 ERROR not_null_mart_customer_revenue_customer_name ...................... [\u001b[31mERROR\u001b[0m in 0.02s]\n\u001b[0m09:24:25  5 of 6 START test unique_mart_customer_revenue_customer_id ..................... [RUN]\n\u001b[0m09:24:25  5 of 6 PASS unique_mart_customer_revenue_customer_id ........................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m09:24:25  6 of 6 START test unique_mart_customer_revenue_customer_name ................... [RUN]\n\u001b[0m09:24:25  6 of 6 ERROR unique_mart_customer_revenue_customer_name ........................ [\u001b[31mERROR\u001b[0m in 0.02s]\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  Finished running 2 table models, 4 data tests in 0 hours 0 minutes and 0.38 seconds (0.38s).\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  \u001b[31mCompleted with 2 errors, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  \u001b[31mFailure in test not_null_mart_customer_revenue_customer_name (models/schema.yml)\u001b[0m\n\u001b[0m09:24:25    Runtime Error in test not_null_mart_customer_revenue_customer_name (models/schema.yml)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 19: where customer_name is null\n                 ^\n\u001b[0m09:24:25  \n\u001b[0m09:24:25    compiled code at target/compiled/driftdoctor_case/models/schema.yml/not_null_mart_customer_revenue_customer_name.sql\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  \u001b[31mFailure in test unique_mart_customer_revenue_customer_name (models/schema.yml)\u001b[0m\n\u001b[0m09:24:25    Runtime Error in test unique_mart_customer_revenue_customer_name (models/schema.yml)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 20: where customer_name is not null\n                 ^\n\u001b[0m09:24:25  \n\u001b[0m09:24:25    compiled code at target/compiled/driftdoctor_case/models/schema.yml/unique_mart_customer_revenue_customer_name.sql\n\u001b[0m09:24:25  \n\u001b[0m09:24:25  Done. PASS=4 WARN=0 ERROR=2 SKIP=0 NO-OP=0 TOTAL=6\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database. The current evidence shows that the model is trying to access the column 'customer_id' instead, which is a different column in the database. To resolve this issue, the model should be updated to access the correct column 'customer_name' in the FROM clause. The files to change are `models/mart_customer_revenue.sql` and `models/schema.yml` to update the column name in the model and the schema file, respectively. The updated model should look like this: `select customer_id, full_name, revenue_amount from {{ source('raw', 'raw_customers') }}`, and the updated schema file should look like this: `version: 2\nmodels:\n  - name: mart_customer_revenue\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n      - name: customer_name\n        data_tests: [unique, not_null]`, and the updated source file should look like this: `version: 2\n\nsources:\n  - name: raw\n    schema: raw\n    tables:\n      - name: raw_customers\n        columns:\n          - name: customer_id\n            data_tests: [unique, not_null]\n          - name: customer_name\n            data_tests: [unique, not_null]`.",
+          "files": [
+            {
+              "content": "select customer_id, full_name, revenue_amount from {{ source('raw', 'raw_customers') }}",
+              "path": "models/mart_customer_revenue.sql"
+            },
+            {
+              "content": "version: 2\nmodels:\n  - name: mart_customer_revenue\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n      - name: customer_name\n        data_tests: [unique, not_null]",
+              "path": "models/schema.yml"
+            }
+          ]
+        },
+        "stage": "semantic_retry"
+      }
+    ]
+  }
+}

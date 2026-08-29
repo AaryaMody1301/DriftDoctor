@@ -1,0 +1,101 @@
+{
+  "case_results": [
+    {
+      "case_id": "DD-001",
+      "elapsed_seconds": 18.109,
+      "model_calls": 5,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-002",
+      "elapsed_seconds": 14.55,
+      "model_calls": 5,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-003",
+      "elapsed_seconds": 43.013,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-004",
+      "elapsed_seconds": 40.701,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-005",
+      "elapsed_seconds": 49.479,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-006",
+      "elapsed_seconds": 51.059,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-007",
+      "elapsed_seconds": 44.483,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-008",
+      "elapsed_seconds": 53.454,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-009",
+      "elapsed_seconds": 43.972,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-010",
+      "elapsed_seconds": 13.097,
+      "model_calls": 5,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-011",
+      "elapsed_seconds": 44.028,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-012",
+      "elapsed_seconds": 53.887,
+      "model_calls": 14,
+      "passed": false,
+      "root_cause_correct": false
+    }
+  ],
+  "complete": true,
+  "context_version": "0.2",
+  "expected_cases": 12,
+  "infrastructure_errors": [],
+  "mean_elapsed_seconds": 39.15266666666667,
+  "mean_model_calls": 11.75,
+  "model": "qwen2.5-coder:1.5b",
+  "root_cause_accuracy": 0.0,
+  "root_cause_correct": 0,
+  "scored_cases": 12,
+  "solved": 0,
+  "system": "context-baseline",
+  "verified_resolution_rate": 0.0
+}

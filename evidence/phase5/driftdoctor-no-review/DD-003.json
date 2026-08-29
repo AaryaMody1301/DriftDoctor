@@ -1,0 +1,122 @@
+{
+  "case_id": "DD-003",
+  "context_version": "0.2",
+  "diff": "diff --git a/models/stg_orders.sql b/models/stg_orders.sql\nindex c59c6ee..5a96149 100644\n--- a/models/stg_orders.sql\n+++ b/models/stg_orders.sql\n@@ -1,4 +1,4 @@\n select\n     order_id,\n-    amount_text * 1.0 as amount\n+    CAST(amount_text AS DECIMAL(2,1)) * 1.0 as amount\n from {{ source('raw', 'raw_orders') }}\n",
+  "elapsed_seconds": 172.944,
+  "incident": "A revenue transformation now fails on new source records. Investigate the type mismatch and repair the model without silently accepting invalid values.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 3,
+  "oracle": {
+    "case_id": "DD-003",
+    "checks": [
+      {
+        "detail": "returncode=1",
+        "name": "dbt_build_succeeds",
+        "passed": false
+      },
+      {
+        "detail": "query error: Catalog Error: Table with name stg_orders does not exist!\nDid you mean \"raw.raw_orders\"?\n\nLINE 1: select order_id, amount from analytics.stg_orders order by order_id\n                                     ^",
+        "name": "safe_numeric_conversion",
+        "passed": false
+      },
+      {
+        "detail": "query error: Catalog Error: Table with name stg_orders does not exist!\nDid you mean \"raw.raw_orders\"?\n\nLINE 1: select count(*) from analytics.stg_orders where order_id = 2 and amount is null\n                             ^",
+        "name": "invalid_numeric_is_not_silently_coerced",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 1,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m05:32:39  Running with dbt=1.11.14\n\u001b[0m05:32:39  Registered adapter: duckdb=1.11.0\n\u001b[0m05:32:39  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m05:32:39  \n\u001b[0m05:32:39  Concurrency: 1 threads (target='dev')\n\u001b[0m05:32:39  \n\u001b[0m05:32:39  1 of 3 START sql table model analytics.stg_orders .............................. [RUN]\n\u001b[0m05:32:39  1 of 3 ERROR creating sql table model analytics.stg_orders ..................... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:32:39  2 of 3 SKIP test not_null_stg_orders_order_id .................................. [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:32:39  3 of 3 SKIP test unique_stg_orders_order_id .................................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:32:39  \n\u001b[0m05:32:39  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m05:32:40  \n\u001b[0m05:32:40  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:32:40  \n\u001b[0m05:32:40  \u001b[31mFailure in model stg_orders (models/stg_orders.sql)\u001b[0m\n\u001b[0m05:32:40    Runtime Error in model stg_orders (models/stg_orders.sql)\n  Conversion Error: Could not convert string \"100.50\" to DECIMAL(2,1) when casting from source column amount_text\n  \n  LINE 12:     CAST(amount_text AS DECIMAL(2,1)) * 1.0 as amount\n               ^\n\u001b[0m05:32:40  \n\u001b[0m05:32:40    compiled code at target/compiled/driftdoctor_case/models/stg_orders.sql\n\u001b[0m05:32:40  \n\u001b[0m05:32:40  Done. PASS=0 WARN=0 ERROR=1 SKIP=2 NO-OP=0 TOTAL=3\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-no-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The error message indicates that the model is trying to multiply a VARCHAR column by a DECIMAL column, which is not allowed in SQL. The model should explicitly cast the VARCHAR column to DECIMAL before performing the multiplication."
+      ],
+      "files_to_change": [
+        "models/stg_orders.sql"
+      ],
+      "hypothesis": "The model is trying to multiply a VARCHAR column by a DECIMAL column, which is not allowed in SQL. The model should explicitly cast the VARCHAR column to DECIMAL before performing the multiplication.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 172.944,
+    "final_build": {
+      "returncode": 1,
+      "stderr": "",
+      "stdout": "\u001b[0m05:32:36  Running with dbt=1.11.14\n\u001b[0m05:32:36  Registered adapter: duckdb=1.11.0\n\u001b[0m05:32:36  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m05:32:36  \n\u001b[0m05:32:36  Concurrency: 1 threads (target='dev')\n\u001b[0m05:32:36  \n\u001b[0m05:32:37  1 of 3 START sql table model analytics.stg_orders .............................. [RUN]\n\u001b[0m05:32:37  1 of 3 ERROR creating sql table model analytics.stg_orders ..................... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:32:37  2 of 3 SKIP test not_null_stg_orders_order_id .................................. [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:32:37  3 of 3 SKIP test unique_stg_orders_order_id .................................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  \u001b[31mFailure in model stg_orders (models/stg_orders.sql)\u001b[0m\n\u001b[0m05:32:37    Runtime Error in model stg_orders (models/stg_orders.sql)\n  Conversion Error: Could not convert string \"100.50\" to DECIMAL(2,1) when casting from source column amount_text\n  \n  LINE 12:     CAST(amount_text AS DECIMAL(2,1)) * 1.0 as amount\n               ^\n\u001b[0m05:32:37  \n\u001b[0m05:32:37    compiled code at target/compiled/driftdoctor_case/models/stg_orders.sql\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  Done. PASS=0 WARN=0 ERROR=1 SKIP=2 NO-OP=0 TOTAL=3\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 3,
+    "semantic_retries": 0,
+    "system": "driftdoctor-v0.2-no-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The error message indicates that the model is trying to multiply a VARCHAR column by a DECIMAL column, which is not allowed in SQL. The model should explicitly cast the VARCHAR column to DECIMAL before performing the multiplication."
+          ],
+          "files_to_change": [
+            "models/stg_orders.sql"
+          ],
+          "hypothesis": "The model is trying to multiply a VARCHAR column by a DECIMAL column, which is not allowed in SQL. The model should explicitly cast the VARCHAR column to DECIMAL before performing the multiplication.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_orders.sql"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m05:31:31  Running with dbt=1.11.14\n\u001b[0m05:31:31  Registered adapter: duckdb=1.11.0\n\u001b[0m05:31:32  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m05:31:32  \n\u001b[0m05:31:32  Concurrency: 1 threads (target='dev')\n\u001b[0m05:31:32  \n\u001b[0m05:31:32  1 of 3 START sql table model analytics.stg_orders .............................. [RUN]\n\u001b[0m05:31:33  1 of 3 ERROR creating sql table model analytics.stg_orders ..................... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:31:33  2 of 3 SKIP test not_null_stg_orders_order_id .................................. [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:31:33  3 of 3 SKIP test unique_stg_orders_order_id .................................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:31:33  \n\u001b[0m05:31:33  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.19 seconds (0.19s).\n\u001b[0m05:31:33  \n\u001b[0m05:31:33  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:31:33  \n\u001b[0m05:31:33  \u001b[31mFailure in model stg_orders (models/stg_orders.sql)\u001b[0m\n\u001b[0m05:31:33    Runtime Error in model stg_orders (models/stg_orders.sql)\n  Conversion Error: Could not convert string \"100.50\" to DECIMAL(2,1) when casting from source column amount_text\n  \n  LINE 12:     CAST(amount_text AS DECIMAL(2,1)) * 1.0 as amount\n               ^\n\u001b[0m05:31:33  \n\u001b[0m05:31:33    compiled code at target/compiled/driftdoctor_case/models/stg_orders.sql\n\u001b[0m05:31:33  \n\u001b[0m05:31:33  Done. PASS=0 WARN=0 ERROR=1 SKIP=2 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the model is trying to multiply a VARCHAR column by a DECIMAL column, which is not allowed in SQL. The model should explicitly cast the VARCHAR column to DECIMAL before performing the multiplication.",
+          "files": [
+            {
+              "content": "select\n    order_id,\n    CAST(amount_text AS DECIMAL(2,1)) * 1.0 as amount\nfrom {{ source('raw', 'raw_orders') }}\n",
+              "path": "models/stg_orders.sql"
+            }
+          ]
+        },
+        "stage": "patch"
+      },
+      {
+        "applied": [
+          {
+            "applied": false,
+            "path": "models/stg_orders.sql",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m05:32:36  Running with dbt=1.11.14\n\u001b[0m05:32:36  Registered adapter: duckdb=1.11.0\n\u001b[0m05:32:36  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m05:32:36  \n\u001b[0m05:32:36  Concurrency: 1 threads (target='dev')\n\u001b[0m05:32:36  \n\u001b[0m05:32:37  1 of 3 START sql table model analytics.stg_orders .............................. [RUN]\n\u001b[0m05:32:37  1 of 3 ERROR creating sql table model analytics.stg_orders ..................... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:32:37  2 of 3 SKIP test not_null_stg_orders_order_id .................................. [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:32:37  3 of 3 SKIP test unique_stg_orders_order_id .................................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  \u001b[31mFailure in model stg_orders (models/stg_orders.sql)\u001b[0m\n\u001b[0m05:32:37    Runtime Error in model stg_orders (models/stg_orders.sql)\n  Conversion Error: Could not convert string \"100.50\" to DECIMAL(2,1) when casting from source column amount_text\n  \n  LINE 12:     CAST(amount_text AS DECIMAL(2,1)) * 1.0 as amount\n               ^\n\u001b[0m05:32:37  \n\u001b[0m05:32:37    compiled code at target/compiled/driftdoctor_case/models/stg_orders.sql\n\u001b[0m05:32:37  \n\u001b[0m05:32:37  Done. PASS=0 WARN=0 ERROR=1 SKIP=2 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the model is trying to multiply a VARCHAR column by a DECIMAL column, which is not allowed in SQL. The model should explicitly cast the VARCHAR column to DECIMAL before performing the multiplication.",
+          "files": [
+            {
+              "content": "select\n    order_id,\n    CAST(amount_text AS DECIMAL(2,1)) * 1.0 as amount\nfrom {{ source('raw', 'raw_orders') }}\n",
+              "path": "models/stg_orders.sql"
+            }
+          ]
+        },
+        "stage": "build_retry"
+      }
+    ]
+  }
+}

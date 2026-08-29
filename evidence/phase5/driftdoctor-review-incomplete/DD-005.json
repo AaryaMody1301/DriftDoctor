@@ -1,0 +1,10 @@
+{
+  "case_id": "DD-005",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 52383d6..dcbf308 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/fct_revenue.sql b/models/fct_revenue.sql\nindex 2d941f0..881daed 100644\n--- a/models/fct_revenue.sql\n+++ b/models/fct_revenue.sql\n@@ -6,3 +6,4 @@ select\n from {{ source('raw', 'raw_orders') }} o\n left join {{ source('raw', 'raw_customer_tiers') }} d\n   on o.customer_id = d.customer_id\n+  and d.tier = (select max(effective_at) from {{ source('raw', 'raw_customer_tiers') }} d2 where d2.customer_id = o.customer_id)\ndiff --git a/models/sources.yml b/models/sources.yml\nindex 9d861fb..94510b2 100644\n--- a/models/sources.yml\n+++ b/models/sources.yml\n@@ -6,3 +6,7 @@ sources:\n     tables:\n       - name: raw_orders\n       - name: raw_customer_tiers\n+        columns:\n+          - name: effective_at\n+            data_types:\n+              - type: date\n",
+  "error": "local inference transport failed after 2 attempts: timed out",
+  "error_type": "InferenceTransportError",
+  "model": "qwen2.5-coder:1.5b",
+  "status": "infrastructure_error",
+  "system": "driftdoctor-review"
+}
