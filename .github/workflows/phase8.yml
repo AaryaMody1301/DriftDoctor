@@ -4,25 +4,23 @@ on:
   pull_request:
     paths:
       - "driftdoctor/repair_skills.py"
+      - "driftdoctor/v3.py"
       - "driftdoctor/v4.py"
       - "scripts/run_phase8.py"
+      - "tests/test_repair_skills.py"
       - ".github/workflows/phase8.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: phase8-skills-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
 
 jobs:
-  skills-only:
+  verify-and-measure:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -33,13 +31,25 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Validate frozen benchmark contract
         run: python scripts/validate_benchmark.py
-      - name: Measure deterministic contract skills
+      - name: Run repair-skill generalization and anti-leakage tests
+        run: python -m unittest tests.test_repair_skills
+      - name: Measure deterministic contract-skill ablation
         run: python scripts/run_phase8.py --no-fallback --model qwen2.5-coder:1.5b --max-calls 14
-      - name: Upload Phase 8 evidence
+      - name: Measure final hybrid entry point
+        run: python scripts/run_phase8.py --model qwen2.5-coder:1.5b --max-calls 14
+      - name: Upload Phase 8 skills-only evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: phase8-skills-only-${{ github.run_id }}
           path: benchmark/results/phase8/skills-only/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Upload Phase 8 hybrid evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: phase8-hybrid-${{ github.run_id }}
+          path: benchmark/results/phase8/hybrid/
           if-no-files-found: warn
           retention-days: 30
