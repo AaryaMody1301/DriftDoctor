@@ -14,16 +14,65 @@ sys.path.insert(0, str(ROOT))
 
 from driftdoctor.v2 import InferenceTransportError, run_v2  # noqa: E402
 
+SANDBOX_MARKER = ".driftdoctor-sandbox"
+
+
+def _read_required_text(path_value: str, label: str) -> str:
+    path = Path(path_value).expanduser().resolve()
+    if not path.is_file():
+        raise SystemExit(f"{label} file does not exist: {path}")
+    text = path.read_text(encoding="utf-8").strip()
+    if not text:
+        raise SystemExit(f"{label} must not be empty: {path}")
+    return text
+
 
 def _incident_text(args: argparse.Namespace) -> str:
-    if args.incident:
-        return args.incident.strip()
-    return Path(args.incident_file).read_text(encoding="utf-8").strip()
+    if args.incident is not None:
+        text = args.incident.strip()
+        if not text:
+            raise SystemExit("incident description must not be empty")
+        return text
+    return _read_required_text(args.incident_file, "incident")
 
 
 def _copy_project(source: Path, sandbox: Path) -> None:
-    ignored = shutil.ignore_patterns(".git", "target", "logs", "dbt_packages", "__pycache__", ".work")
+    ignored = shutil.ignore_patterns(
+        ".git", "target", "logs", "dbt_packages", "__pycache__", ".work", SANDBOX_MARKER
+    )
     shutil.copytree(source, sandbox, ignore=ignored)
+
+
+def _validate_sandbox_target(source: Path, sandbox: Path) -> None:
+    source = source.resolve()
+    sandbox = sandbox.resolve()
+    filesystem_root = Path(sandbox.anchor).resolve()
+    protected = {ROOT.resolve(), Path.home().resolve(), filesystem_root}
+
+    if sandbox in protected:
+        raise SystemExit(f"refusing unsafe sandbox target: {sandbox}")
+    if sandbox == source or sandbox in source.parents or source in sandbox.parents:
+        raise SystemExit(
+            "sandbox must be separate from the source project and may not contain, or be contained by, it"
+        )
+
+
+def _prepare_sandbox(source: Path, sandbox: Path, force: bool) -> None:
+    _validate_sandbox_target(source, sandbox)
+    if sandbox.exists():
+        if not force:
+            raise SystemExit(f"sandbox already exists: {sandbox}; pass --force to replace it")
+        marker = sandbox / SANDBOX_MARKER
+        if not marker.is_file():
+            raise SystemExit(
+                f"refusing to delete unowned directory: {sandbox}; --force only replaces a prior DriftDoctor sandbox"
+            )
+        shutil.rmtree(sandbox)
+
+    _copy_project(source, sandbox)
+    (sandbox / SANDBOX_MARKER).write_text(
+        "Disposable DriftDoctor sandbox. Safe to replace with --force.\n", encoding="utf-8"
+    )
 
 
 def _init_snapshot(root: Path) -> None:
@@ -77,13 +126,17 @@ def main() -> int:
         "--semantic-review",
         action=argparse.BooleanOptionalAction,
         default=False,
-        help="Enable the Phase 5 semantic-review stage. Default is off until the ablation is frozen.",
+        help="Enable the removed Phase 5 semantic-review experiment. The measured final workflow leaves it off.",
     )
     parser.add_argument(
         "--sandbox",
         help="Disposable output directory. Default: .work/manual-<UTC timestamp>",
     )
-    parser.add_argument("--force", action="store_true", help="Replace an existing sandbox directory")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace an existing directory only when it is marked as a prior DriftDoctor sandbox",
+    )
     args = parser.parse_args()
 
     source = Path(args.project).expanduser().resolve()
@@ -93,27 +146,30 @@ def main() -> int:
         raise SystemExit("source project must contain dbt_project.yml")
     if not (source / "profiles.yml").is_file():
         raise SystemExit(
-            "source project must contain a local profiles.yml so the disposable run cannot depend on hidden credentials"
+            "source project must contain a project-local profiles.yml; do not use production credentials"
         )
+    if args.max_calls < 2:
+        raise SystemExit("--max-calls must be at least 2 (diagnosis + patch)")
+    if not args.model.strip():
+        raise SystemExit("--model must not be empty")
+
+    incident_text = _incident_text(args)
+    context_text = None
+    if args.business_context:
+        context_text = _read_required_text(args.business_context, "business context")
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    sandbox = Path(args.sandbox).expanduser().resolve() if args.sandbox else (ROOT / ".work" / f"manual-{stamp}").resolve()
-    if sandbox.exists():
-        if not args.force:
-            raise SystemExit(f"sandbox already exists: {sandbox}; pass --force to replace it")
-        shutil.rmtree(sandbox)
+    sandbox = (
+        Path(args.sandbox).expanduser().resolve()
+        if args.sandbox
+        else (ROOT / ".work" / f"manual-{stamp}").resolve()
+    )
+    _prepare_sandbox(source, sandbox, args.force)
 
-    _copy_project(source, sandbox)
-    if args.business_context:
-        context_path = Path(args.business_context).expanduser().resolve()
-        if not context_path.is_file():
-            raise SystemExit(f"business context file does not exist: {context_path}")
-        (sandbox / "BUSINESS_CONTEXT.md").write_text(
-            context_path.read_text(encoding="utf-8"), encoding="utf-8"
-        )
+    if context_text is not None:
+        (sandbox / "BUSINESS_CONTEXT.md").write_text(context_text + "\n", encoding="utf-8")
 
     _init_snapshot(sandbox)
-    incident_text = _incident_text(args)
 
     try:
         result = run_v2(
@@ -128,9 +184,19 @@ def main() -> int:
         result = None
         infrastructure_error = str(exc)
 
+    build = (result or {}).get("final_build") or {}
+    build_returncode = build.get("returncode")
+    if infrastructure_error:
+        execution_status = "infrastructure_error"
+    elif build_returncode == 0:
+        execution_status = "build_passed_requires_human_approval"
+    else:
+        execution_status = "build_failed"
+
     report = {
-        "report_version": "1.0",
+        "report_version": "1.1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "execution_status": execution_status,
         "source_project": str(source),
         "sandbox_project": str(sandbox),
         "source_project_modified": False,
@@ -157,9 +223,12 @@ def main() -> int:
         print(f"Infrastructure error: {infrastructure_error}", file=sys.stderr)
         return 2
 
-    build = (result or {}).get("final_build") or {}
-    print(f"dbt build return code: {build.get('returncode')}")
+    print(f"dbt build return code: {build_returncode}")
     print("No source files were modified and no deployment was performed.")
+    if build_returncode != 0:
+        print("Repair did not reach a successful dbt build; inspect the approval report.", file=sys.stderr)
+        return 1
+    print("Build passed, but human approval and project-specific semantic checks are still required.")
     return 0
 
 
