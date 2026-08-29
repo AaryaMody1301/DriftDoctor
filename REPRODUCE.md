@@ -47,6 +47,8 @@ This case is not included in the 12-case primary VRR.
 - approximately 1 GB free disk only when reproducing the optional local-agent trajectory
 - Ollama **0.33.2** and `qwen2.5-coder:1.5b` only for model-based historical runs or the held-out agent case
 
+Pinned optional local runtime: **Ollama 0.33.2**.
+
 Pinned Python packages:
 
 ```text
