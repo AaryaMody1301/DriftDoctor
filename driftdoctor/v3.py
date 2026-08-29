@@ -35,11 +35,11 @@ Root-cause taxonomy:
 
 REPAIR_PLAYBOOK = """
 Contract-guided repair rules. Apply only when visible evidence/business context supports them:
-1. Preserve public model/file names, test targets, and downstream column names unless the incident explicitly says a dbt model was renamed.
+1. Preserve public model/file names, test targets, and downstream column names. This workflow only edits files that already exist in the project.
 2. Missing source column + candidate/source header with a replacement field: select the replacement source field and alias it to the stable downstream contract name. Do not write the missing old source name back unchanged.
 3. Required derived display/name fields: derive them from the documented source fields exactly; for a trimmed first/last name contract use trim(first_name || ' ' || last_name).
 4. Text-to-number where invalid text must become NULL: use DuckDB TRY_CAST to a practical wide numeric type such as DECIMAL(18,2). Do not use a narrow precision inferred from a sample and do not coerce invalid values to zero or drop them.
-5. Renamed dbt dependency: update ref() to the model file/name that exists. Do not recreate the removed model or rename unrelated models/tests.
+5. Renamed dbt dependency: update ref() in an existing downstream model to the model file/name that exists. Do not recreate the removed model.
 6. One-to-many SCD/dimension join: reduce the dimension to one current row per business key before joining (for example row_number() over(partition by key order by effective_at desc) and QUALIFY row_number()... = 1). Keep the fact grain and original model name.
 7. Required identifiers: exclude NULL, empty, and whitespace-only values using trim/nullif logic. Do not invent identifiers.
 8. Categorical drift: update the CASE mapping and accepted_values validation together; keep validation rather than deleting it.
@@ -48,7 +48,7 @@ Contract-guided repair rules. Apply only when visible evidence/business context 
 11. UTC timestamp to named local reporting date in DuckDB: treat the source timestamp as UTC, convert the instant to the documented zone, then cast to DATE. A robust pattern is timezone('<zone>', timezone('UTC', cast(ts as timestamp))) before DATE casting.
 12. Positive refund magnitudes: compute sales and refunds separately, then net_revenue = gross_sales - refunds. A green build alone does not prove this semantic rule.
 13. Multi-fault incidents: repair every independently documented fault in the same patch; do not stop after the first compiler error.
-14. Prefer editing existing files. Never create a second renamed copy of a model as a way to avoid fixing its logic.
+14. Never create a second renamed copy of a model or retarget tests as a way to avoid fixing existing logic.
 """.strip()
 
 
@@ -61,14 +61,44 @@ def _project_text(root: Path) -> str:
     return "".join(parts).lower()
 
 
+def _schema_text(root: Path) -> str:
+    parts: list[str] = []
+    for pattern in ("models/**/*.yml", "models/**/*.yaml"):
+        for path in sorted(root.glob(pattern)):
+            if path.is_file():
+                parts.append(path.read_text(errors="replace"))
+    return "\n".join(parts).lower()
+
+
+def _apply_contract_patch(root: Path, patch: dict) -> list[dict]:
+    """Apply only in-place edits to existing model/macro files.
+
+    Drift repair should not be able to evade a failing contract by creating a second
+    model with a new name and moving tests to it. General repo-creation work belongs
+    outside this bounded incident-repair workflow.
+    """
+    accepted: list[dict] = []
+    rejected: list[dict] = []
+    for item in patch.get("files", []):
+        raw = str(item.get("path", ""))
+        target = (root / raw).resolve()
+        if not target.is_file():
+            rejected.append({"path": raw, "applied": False, "reason": "contract repair may edit existing files only"})
+            continue
+        accepted.append(item)
+    applied = _apply_patch(root, {"files": accepted})
+    return rejected + applied
+
+
 def semantic_concerns(root: Path, context: str) -> list[str]:
     """Return visible contract concerns that a green dbt build cannot settle by itself.
 
-    These are intentionally generic text lints derived only from BUSINESS_CONTEXT and
-    the current project. They never read benchmark cases, oracle code, or reference repairs.
+    These are generic text lints derived only from BUSINESS_CONTEXT and the current
+    project. They never read benchmark cases, oracle code, or reference repairs.
     """
     ctx = context.lower()
     code = _project_text(root)
+    schema = _schema_text(root)
     concerns: list[str] = []
 
     if "invalid numeric" in ctx and "null" in ctx and "try_cast" not in code:
@@ -78,14 +108,16 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
         if not all(token in code for token in ("first_name", "last_name", "trim")):
             concerns.append("Documented display-name derivation from trimmed first_name + space + last_name is not visible in current SQL.")
 
-    if "null, empty, or whitespace" in ctx and not ("trim(" in code and ("nullif(" in code or "<> ''" in code or "!= ''" in code)):
+    if "null, empty, or whitespace" in ctx and not (
+        "trim(" in code and ("nullif(" in code or "<> ''" in code or "!= ''" in code)
+    ):
         concerns.append("Required identifier rule mentions NULL/empty/whitespace rows, but current SQL does not visibly filter trimmed blanks.")
 
     if "chargeback -> loss" in ctx:
         if "chargeback" not in code or "loss" not in code:
             concerns.append("Documented chargeback -> loss mapping is missing from current project logic.")
-        if "accepted_values" in code and "loss" not in code:
-            concerns.append("Validation exists but does not visibly include the documented loss business status.")
+        if "accepted_values" in schema and "loss" not in schema:
+            concerns.append("accepted_values validation exists but does not include the documented loss business status.")
 
     if "keyword argument `scale`" in ctx and not re.search(r"scale\s*=\s*100", code):
         concerns.append("Business context requires the current macro call to use keyword scale=100.")
@@ -108,11 +140,15 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
         if net_match is None or "-" not in net_match.group(0):
             concerns.append("Documented net_revenue = sales - refunds rule is not visible in the net_revenue expression.")
 
-    if "downstream names must remain stable" in ctx and "customer_name" in ctx:
-        # A rename repair should keep the public name as an alias. This catches the common
-        # failure mode of selecting the removed source name unchanged.
+    if "public mart contract" in ctx and "customer_name" in ctx:
+        # If the source sample lacks the public contract field, a repair must visibly
+        # derive or alias some available field to the stable public name.
         evidence = collect_evidence(root)
-        headers = [cell.lower() for rows in evidence.get("input_samples", {}).values() for cell in (rows[0] if rows else [])]
+        headers = [
+            cell.lower()
+            for rows in evidence.get("input_samples", {}).values()
+            for cell in (rows[0] if rows else [])
+        ]
         if "customer_name" not in headers and " as customer_name" not in code:
             concerns.append("Source samples do not contain customer_name while the public contract requires it; current SQL lacks an alias to customer_name.")
 
@@ -166,8 +202,8 @@ def _patch(
                 "role": "system",
                 "content": (
                     "Repair the dbt project with the smallest complete-file replacements that satisfy the documented contract. "
-                    "Return actual file contents, never placeholders or markdown fences. Preserve model names/contracts and prefer existing files. "
-                    "A patch that merely renames a model/test, repeats the broken source field, or deletes validation is not a repair.\n\n"
+                    "Return actual file contents, never placeholders or markdown fences. Only edit files that already exist. "
+                    "Preserve model names/contracts. A patch that renames a model/test, repeats the broken source field, or deletes validation is not a repair.\n\n"
                     + REPAIR_PLAYBOOK
                 ),
             },
@@ -198,12 +234,12 @@ def run_v3(root: Path, incident: str, model: str, max_model_calls: int = 14) -> 
 
     patch = _patch(model, incident, context, diagnosis, evidence)
     calls += 1
-    applied = _apply_patch(root, patch)
+    applied = _apply_contract_patch(root, patch)
     build = _run_build(root)
     trajectory.append({"stage": "patch", "output": patch, "applied": applied, "build": build})
 
-    # Up to two build-driven corrections. Unlike the previous workflow, a failed
-    # retry is not terminal if there is still model-call budget and new concrete evidence.
+    # Up to two build-driven corrections. A failed retry is not terminal if there
+    # is still model-call budget and new concrete evidence.
     for retry_index in range(2):
         if build.get("returncode") == 0 or calls >= max_model_calls:
             break
@@ -218,7 +254,7 @@ def run_v3(root: Path, incident: str, model: str, max_model_calls: int = 14) -> 
             failure=build,
         )
         calls += 1
-        applied_retry = _apply_patch(root, repair)
+        applied_retry = _apply_contract_patch(root, repair)
         build = _run_build(root)
         trajectory.append(
             {
@@ -244,7 +280,7 @@ def run_v3(root: Path, incident: str, model: str, max_model_calls: int = 14) -> 
             concerns=concerns,
         )
         calls += 1
-        applied_semantic = _apply_patch(root, repair)
+        applied_semantic = _apply_contract_patch(root, repair)
         build = _run_build(root)
         trajectory.append(
             {
