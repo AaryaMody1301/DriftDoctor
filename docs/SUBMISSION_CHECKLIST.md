@@ -9,11 +9,13 @@ This checklist maps DriftDoctor's final package to the hackathon deliverables an
 - [x] Preserve Phase 4 as a measured failed experiment rather than rewriting history.
 - [x] Clean-environment reproduction guide (`REPRODUCE.md`).
 - [x] Case-level observable trajectories and tool/model outputs are stored in evaluation evidence.
+- [x] Judge-facing safe CLI operates on a disposable project copy and emits an approval-ready JSON report.
+- [x] README includes a concise failure mode and evidence-backed hot take.
 - [ ] Freeze complete Phase 5 results for all comparison systems.
 - [ ] Select final workflow using the predeclared rule: VRR first, then model calls/latency.
 - [ ] Update Improvement Changelog with final Phase 5 numbers and removal/retention decision for semantic review.
 - [ ] Produce final comparison table using only complete, matched-context runs.
-- [ ] Add a concise final failure-mode + hot-take section to README.
+- [ ] Preserve selected raw Phase 5 result records in the repository and record CI artifact digest.
 - [ ] Record final commit SHA and clean reproduction runtime.
 - [ ] Record a <=5 minute solution video.
 - [ ] Include one realistic end-to-end run, baseline/final comparison, changelog, biggest contribution, and one removed/failed experiment in the video.
@@ -25,7 +27,7 @@ This checklist maps DriftDoctor's final package to the hackathon deliverables an
 - [x] Primary user is analytics/data engineers maintaining dbt projects.
 - [x] Bottleneck is evidence-heavy incident diagnosis plus safe repair verification.
 - [x] Product boundary is concrete: schema, contract, dependency, data-quality, and semantic drift in dbt pipelines.
-- [ ] README final pass states the before/after user workflow in under 30 seconds of reading.
+- [x] README states the before/after user workflow and provides a one-command local incident path.
 
 ### Agent Solution & Engineering — 30
 
@@ -42,7 +44,7 @@ This checklist maps DriftDoctor's final package to the hackathon deliverables an
 - [x] Starts from a broken local dbt project and ends in a concrete patch plus executable verification.
 - [x] Silent semantic failures can be caught by the external evaluator even when `dbt build` is green.
 - [x] Synthetic workspace prevents production side effects.
-- [ ] Add judge-facing CLI/report polish for the selected final workflow.
+- [x] Judge-facing CLI/report path uses a disposable copy, captures the diff/trajectory/build evidence, and requires human approval.
 - [ ] Demonstrate one approval-ready repair report in the video.
 
 ### Measured Improvement — 15
@@ -59,18 +61,18 @@ This checklist maps DriftDoctor's final package to the hackathon deliverables an
 - [x] Pinned Python/dbt/DuckDB versions.
 - [x] Synthetic local data and DuckDB; no warehouse credentials.
 - [x] Reference repairs prove oracle solvability.
-- [x] `REPRODUCE.md` contains exact install/evaluation commands.
+- [x] `REPRODUCE.md` contains exact install/evaluation commands and the safe local CLI.
 - [x] CI validates benchmark and stores evidence artifacts.
 - [ ] Final clean-run commit and artifact digest recorded.
 
 ### Hot Take / Insights — 5
 
-Evidence-backed candidates; do not freeze wording until Phase 5 completes:
+Evidence-backed candidates:
 
-1. A verifier is not automatically useful: Phase 4 added 14 verifier-triggered retries but improved VRR by zero.
+1. A verifier is not automatically useful: Phase 4 added verifier-triggered retries but improved VRR by zero.
 2. Better protocol compliance is not the same as better task success: invalid action turns fell substantially while verified repair rate stayed flat.
 3. An evaluation can be deterministic and still be invalid if required business context is hidden from the agent.
-4. For repair agents, deterministic executable verification plus explicit business contracts may matter more than adding agent count.
+4. A green pipeline is not a verified pipeline: semantic correctness needs executable checks plus explicit business contracts, not just a successful build.
 
 ## Evidence-integrity rules
 
