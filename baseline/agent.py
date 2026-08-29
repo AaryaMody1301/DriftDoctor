@@ -6,7 +6,7 @@ import re
 import subprocess
 import time
 import urllib.request
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
@@ -19,19 +19,17 @@ class Step:
     elapsed_seconds: float
 
 
-SYSTEM = '''You are the frozen DriftDoctor baseline coding agent.
-You repair one local dbt project. You have only four tools: list_files, read_file, write_file, run_command.
-Stay inside the provided project directory. Do not use network access. Do not ask for hidden benchmark data.
-Work independently. When finished, return a final action.
+SYSTEM = '''You are a coding agent responsible for repairing a broken dbt project.
+You are given a local project directory and an incident description. Inspect the project, run any available local commands you think are useful, identify the root cause, and make the code or configuration changes needed to fix the incident.
+Do not access external systems, deploy anything, or modify files outside the provided project directory.
+When you believe the incident is fixed, stop and provide your primary root-cause class, a concise explanation, changed files, and verification performed.
 
-Respond with exactly one JSON object per turn, no markdown:
+You have four tools. Respond with exactly one JSON object per turn, no markdown:
 {"action":"list_files"}
 {"action":"read_file","path":"models/example.sql"}
 {"action":"write_file","path":"models/example.sql","content":"complete replacement contents"}
 {"action":"run_command","command":"dbt build --profiles-dir ."}
-{"action":"final","root_cause_class":"short_label","explanation":"...","changed_files":["..."],"verification":"..."}
-
-Prefer inspecting evidence and running dbt commands before editing. Keep repairs minimal.'''
+{"action":"final","root_cause_class":"short_label","explanation":"...","changed_files":["..."],"verification":"..."}'''
 
 
 def _chat(model: str, messages: list[dict], timeout: int = 180) -> str:
@@ -89,9 +87,13 @@ def _observe(root: Path, action: dict, command_timeout: int) -> str:
         return f"wrote {p.relative_to(root)}"
     if kind == "run_command":
         command = str(action.get("command", ""))
-        forbidden = ["curl ", "wget ", "http://", "https://", "ssh ", "scp "]
-        if any(x in command.lower() for x in forbidden):
-            return "command rejected: network/external access is disabled"
+        lowered = command.lower()
+        forbidden = [
+            "curl ", "wget ", "http://", "https://", "ssh ", "scp ",
+            "../", "/home/", "benchmark/", "cases.json", "oracles.py", "reference_repairs",
+        ]
+        if any(x in lowered for x in forbidden):
+            return "command rejected: external/hidden benchmark access is disabled"
         try:
             proc = subprocess.run(command, cwd=root, shell=True, text=True, capture_output=True, timeout=command_timeout)
             output = f"returncode={proc.returncode}\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
@@ -105,7 +107,7 @@ def run_baseline(root: Path, incident: str, model: str, max_steps: int = 14, com
     root = root.resolve()
     messages = [
         {"role": "system", "content": SYSTEM},
-        {"role": "user", "content": "Incident:\n" + incident + "\n\nBegin by inspecting the local project."},
+        {"role": "user", "content": "Incident:\n" + incident},
     ]
     steps: list[Step] = []
     final: dict | None = None
