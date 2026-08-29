@@ -1,0 +1,10 @@
+{
+  "case_id": "DD-007",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex ba755ee..ebb2c02 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/schema.yml b/models/schema.yml\nindex 023fb44..3170d93 100644\n--- a/models/schema.yml\n+++ b/models/schema.yml\n@@ -8,4 +8,4 @@ models:\n         data_tests:\n           - accepted_values:\n               arguments:\n-                values: ['revenue', 'refund']\n+                values: ['revenue', 'refund', 'chargeback']\ndiff --git a/models/stg_order_status.sql b/models/stg_order_status.sql\nindex 2d2ffca..a4412a4 100644\n--- a/models/stg_order_status.sql\n+++ b/models/stg_order_status.sql\n@@ -4,6 +4,7 @@ select\n     case\n       when status = 'paid' then 'revenue'\n       when status = 'refunded' then 'refund'\n+      when status = 'chargeback' then 'loss'\n       else 'unknown'\n     end as business_status\n from {{ source('raw', 'raw_orders') }}\n",
+  "error": "local inference transport failed after 2 attempts: timed out",
+  "error_type": "InferenceTransportError",
+  "model": "qwen2.5-coder:1.5b",
+  "status": "infrastructure_error",
+  "system": "driftdoctor-review"
+}

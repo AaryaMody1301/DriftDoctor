@@ -1,0 +1,98 @@
+{
+  "case_id": "DD-009",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 43effce..64b3c13 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/schema.yml b/models/schema.yml\nindex d1cf5b9..3299bae 100644\n--- a/models/schema.yml\n+++ b/models/schema.yml\n@@ -1,6 +1,6 @@\n version: 2\n models:\n-  - name: current_customers\n+  - name: current_customers_ref\n     columns:\n       - name: customer_id\n         data_tests: [unique, not_null]\n",
+  "elapsed_seconds": 88.528,
+  "incident": "A customer snapshot-like model now emits multiple current records per customer even though all dbt models compile. Restore the documented one-row-per-customer contract.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 2,
+  "oracle": {
+    "case_id": "DD-009",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=0; actual=1",
+        "name": "customer_grain_unique",
+        "passed": false
+      },
+      {
+        "detail": "expected=[['C001', 'new@example.com'], ['C002', 'stable@example.com']]; actual=[['C001', 'old@example.com'], ['C001', 'new@example.com'], ['C002', 'stable@example.com']]",
+        "name": "recency_rule_preserved",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m05:53:48  Running with dbt=1.11.14\n\u001b[0m05:53:49  Registered adapter: duckdb=1.11.0\n\u001b[0m05:53:49  Found 1 model, 1 source, 500 macros\n\u001b[0m05:53:49  \n\u001b[0m05:53:49  Concurrency: 1 threads (target='dev')\n\u001b[0m05:53:49  \n\u001b[0m05:53:49  1 of 1 START sql table model analytics.current_customers ....................... [RUN]\n\u001b[0m05:53:49  1 of 1 OK created sql table model analytics.current_customers .................. [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:53:49  \n\u001b[0m05:53:49  Finished running 1 table model in 0 hours 0 minutes and 0.30 seconds (0.30s).\n\u001b[0m05:53:49  \n\u001b[0m05:53:49  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:53:49  \n\u001b[0m05:53:49  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=1\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-no-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The `current_customers` model has been renamed to `current_customers_ref` in the `models/schema.yml` file."
+      ],
+      "files_to_change": [
+        "models/schema.yml"
+      ],
+      "hypothesis": "The model `current_customers` has been renamed to `current_customers_ref` in the `models/schema.yml` file, which is causing the multiple current records per customer issue.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 88.528,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m05:53:45  Running with dbt=1.11.14\n\u001b[0m05:53:45  Registered adapter: duckdb=1.11.0\n\u001b[0m05:53:46  [\u001b[33mWARNING\u001b[0m]: Did not find matching node for patch with name 'current_customers_ref' in the 'models' section of file 'models/schema.yml'\n\u001b[0m05:53:46  [\u001b[33mWARNING\u001b[0m]: Test 'test.driftdoctor_case.unique_current_customers_ref_customer_id.9ffbdcaf6c' (models/schema.yml) depends on a node named 'current_customers_ref' in package '' which was not found\n\u001b[0m05:53:46  [\u001b[33mWARNING\u001b[0m]: Test 'test.driftdoctor_case.not_null_current_customers_ref_customer_id.a529fbd41a' (models/schema.yml) depends on a node named 'current_customers_ref' in package '' which was not found\n\u001b[0m05:53:46  Found 1 model, 1 source, 500 macros\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  Concurrency: 1 threads (target='dev')\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  1 of 1 START sql table model analytics.current_customers ....................... [RUN]\n\u001b[0m05:53:46  1 of 1 OK created sql table model analytics.current_customers .................. [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  Finished running 1 table model in 0 hours 0 minutes and 0.22 seconds (0.22s).\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=1\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 2,
+    "semantic_retries": 0,
+    "system": "driftdoctor-v0.2-no-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The `current_customers` model has been renamed to `current_customers_ref` in the `models/schema.yml` file."
+          ],
+          "files_to_change": [
+            "models/schema.yml"
+          ],
+          "hypothesis": "The model `current_customers` has been renamed to `current_customers_ref` in the `models/schema.yml` file, which is causing the multiple current records per customer issue.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/schema.yml"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m05:53:45  Running with dbt=1.11.14\n\u001b[0m05:53:45  Registered adapter: duckdb=1.11.0\n\u001b[0m05:53:46  [\u001b[33mWARNING\u001b[0m]: Did not find matching node for patch with name 'current_customers_ref' in the 'models' section of file 'models/schema.yml'\n\u001b[0m05:53:46  [\u001b[33mWARNING\u001b[0m]: Test 'test.driftdoctor_case.unique_current_customers_ref_customer_id.9ffbdcaf6c' (models/schema.yml) depends on a node named 'current_customers_ref' in package '' which was not found\n\u001b[0m05:53:46  [\u001b[33mWARNING\u001b[0m]: Test 'test.driftdoctor_case.not_null_current_customers_ref_customer_id.a529fbd41a' (models/schema.yml) depends on a node named 'current_customers_ref' in package '' which was not found\n\u001b[0m05:53:46  Found 1 model, 1 source, 500 macros\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  Concurrency: 1 threads (target='dev')\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  1 of 1 START sql table model analytics.current_customers ....................... [RUN]\n\u001b[0m05:53:46  1 of 1 OK created sql table model analytics.current_customers .................. [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  Finished running 1 table model in 0 hours 0 minutes and 0.22 seconds (0.22s).\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:53:46  \n\u001b[0m05:53:46  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=1\n"
+        },
+        "output": {
+          "explanation": "The issue arises because the `current_customers` model has been renamed to `current_customers_ref` in the `models/schema.yml` file. This change has caused the model to emit multiple current records per customer, which violates the documented contract of one row per `customer_id`. To fix this, we need to update the model to use the correct table name and ensure that the model is correctly configured to emit only one row per customer.",
+          "files": [
+            {
+              "content": "version: 2\nmodels:\n  - name: current_customers_ref\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n",
+              "path": "models/schema.yml"
+            }
+          ]
+        },
+        "stage": "patch"
+      }
+    ]
+  }
+}

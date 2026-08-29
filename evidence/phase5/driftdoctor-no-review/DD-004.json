@@ -1,0 +1,122 @@
+{
+  "case_id": "DD-004",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 94152c3..19e2c67 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/mart_orders.sql b/models/mart_orders.sql\nindex a70c196..eba0cac 100644\n--- a/models/mart_orders.sql\n+++ b/models/mart_orders.sql\n@@ -2,4 +2,4 @@ select\n     order_id,\n     customer_id,\n     amount\n-from {{ ref('stg_orders') }}\n+from {{ ref('stg_orders_v2') }}\n",
+  "elapsed_seconds": 45.76,
+  "incident": "A downstream mart stopped compiling after a project refactor. Restore the dependency correctly and keep the public mart contract unchanged.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 2,
+  "oracle": {
+    "case_id": "DD-004",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[1, 10, 100], [2, 20, 50]]; actual=[[1, 10, 100], [2, 20, 50]]",
+        "name": "renamed_ref_output_contract",
+        "passed": true
+      },
+      {
+        "detail": "old model ref must not remain",
+        "name": "no_stale_ref",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m05:33:27  Running with dbt=1.11.14\n\u001b[0m05:33:28  Registered adapter: duckdb=1.11.0\n\u001b[0m05:33:28  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:33:28  \n\u001b[0m05:33:28  Concurrency: 1 threads (target='dev')\n\u001b[0m05:33:28  \n\u001b[0m05:33:28  1 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m05:33:28  1 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:33:28  2 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m05:33:28  2 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m05:33:28  3 of 4 START test not_null_mart_orders_order_id ................................ [RUN]\n\u001b[0m05:33:28  3 of 4 PASS not_null_mart_orders_order_id ...................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m05:33:28  4 of 4 START test unique_mart_orders_order_id .................................. [RUN]\n\u001b[0m05:33:28  4 of 4 PASS unique_mart_orders_order_id ........................................ [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:33:28  \n\u001b[0m05:33:28  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.40 seconds (0.40s).\n\u001b[0m05:33:28  \n\u001b[0m05:33:28  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:33:28  \n\u001b[0m05:33:28  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n",
+    "passed": true
+  },
+  "passed": true,
+  "root_cause_correct": true,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-no-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The error message indicates that the model 'mart_orders' depends on a node named 'stg_orders' which was not found."
+      ],
+      "files_to_change": [
+        "models/mart_orders.sql",
+        "models/schema.yml",
+        "models/sources.yml",
+        "models/stg_orders_v2.sql"
+      ],
+      "hypothesis": "The model 'mart_orders' depends on a node named 'stg_orders' which was not found. This suggests that the staging model 'stg_orders' was renamed during the refactor, and the model 'mart_orders' is trying to reference the renamed node.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 45.76,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m05:33:23  Running with dbt=1.11.14\n\u001b[0m05:33:23  Registered adapter: duckdb=1.11.0\n\u001b[0m05:33:23  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m05:33:25  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  Concurrency: 1 threads (target='dev')\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  1 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m05:33:25  1 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m05:33:25  2 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m05:33:25  2 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m05:33:25  3 of 4 START test not_null_mart_orders_order_id ................................ [RUN]\n\u001b[0m05:33:25  3 of 4 PASS not_null_mart_orders_order_id ...................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m05:33:25  4 of 4 START test unique_mart_orders_order_id .................................. [RUN]\n\u001b[0m05:33:25  4 of 4 PASS unique_mart_orders_order_id ........................................ [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.32 seconds (0.32s).\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 2,
+    "semantic_retries": 0,
+    "system": "driftdoctor-v0.2-no-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The error message indicates that the model 'mart_orders' depends on a node named 'stg_orders' which was not found."
+          ],
+          "files_to_change": [
+            "models/mart_orders.sql",
+            "models/schema.yml",
+            "models/sources.yml",
+            "models/stg_orders_v2.sql"
+          ],
+          "hypothesis": "The model 'mart_orders' depends on a node named 'stg_orders' which was not found. This suggests that the staging model 'stg_orders' was renamed during the refactor, and the model 'mart_orders' is trying to reference the renamed node.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/mart_orders.sql"
+          },
+          {
+            "applied": false,
+            "path": "models/schema.yml",
+            "reason": "no change"
+          },
+          {
+            "applied": false,
+            "path": "models/sources.yml",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m05:33:23  Running with dbt=1.11.14\n\u001b[0m05:33:23  Registered adapter: duckdb=1.11.0\n\u001b[0m05:33:23  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m05:33:25  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  Concurrency: 1 threads (target='dev')\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  1 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m05:33:25  1 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m05:33:25  2 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m05:33:25  2 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m05:33:25  3 of 4 START test not_null_mart_orders_order_id ................................ [RUN]\n\u001b[0m05:33:25  3 of 4 PASS not_null_mart_orders_order_id ...................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m05:33:25  4 of 4 START test unique_mart_orders_order_id .................................. [RUN]\n\u001b[0m05:33:25  4 of 4 PASS unique_mart_orders_order_id ........................................ [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.32 seconds (0.32s).\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:33:25  \n\u001b[0m05:33:25  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the model 'mart_orders' depends on a node named 'stg_orders' which was not found. This suggests that the staging model 'stg_orders' was renamed during the refactor, and the model 'mart_orders' is trying to reference the renamed node.",
+          "files": [
+            {
+              "content": "select\n    order_id,\n    customer_id,\n    amount\nfrom {{ ref('stg_orders_v2') }}\n",
+              "path": "models/mart_orders.sql"
+            },
+            {
+              "content": "version: 2\nmodels:\n  - name: mart_orders\n    columns:\n      - name: order_id\n        data_tests: [unique, not_null]\n",
+              "path": "models/schema.yml"
+            },
+            {
+              "content": "version: 2\n\nsources:\n  - name: raw\n    schema: raw\n    tables:\n      - name: raw_orders\n",
+              "path": "models/sources.yml"
+            }
+          ]
+        },
+        "stage": "patch"
+      }
+    ]
+  }
+}

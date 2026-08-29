@@ -1,0 +1,134 @@
+{
+  "case_id": "DD-007",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex ba755ee..ebb2c02 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/schema.yml b/models/schema.yml\nindex 023fb44..3170d93 100644\n--- a/models/schema.yml\n+++ b/models/schema.yml\n@@ -8,4 +8,4 @@ models:\n         data_tests:\n           - accepted_values:\n               arguments:\n-                values: ['revenue', 'refund']\n+                values: ['revenue', 'refund', 'chargeback']\ndiff --git a/models/stg_order_status.sql b/models/stg_order_status.sql\nindex 2d2ffca..a4412a4 100644\n--- a/models/stg_order_status.sql\n+++ b/models/stg_order_status.sql\n@@ -4,6 +4,7 @@ select\n     case\n       when status = 'paid' then 'revenue'\n       when status = 'refunded' then 'refund'\n+      when status = 'chargeback' then 'loss'\n       else 'unknown'\n     end as business_status\n from {{ source('raw', 'raw_orders') }}\n",
+  "elapsed_seconds": 194.361,
+  "incident": "A source system introduced a new status value. The project either rejects it or maps it incorrectly. Update the transformation so the new value is handled explicitly without weakening existing validation.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 3,
+  "oracle": {
+    "case_id": "DD-007",
+    "checks": [
+      {
+        "detail": "returncode=1",
+        "name": "dbt_build_succeeds",
+        "passed": false
+      },
+      {
+        "detail": "expected=[[1, 'paid', 'revenue'], [2, 'refunded', 'refund'], [3, 'chargeback', 'loss']]; actual=[[1, 'paid', 'revenue'], [2, 'refunded', 'refund'], [3, 'chargeback', 'loss']]",
+        "name": "new_category_mapping",
+        "passed": true
+      },
+      {
+        "detail": "schema.yml must retain accepted_values and include loss",
+        "name": "accepted_values_validation_remains_explicit",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 1,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m05:41:28  Running with dbt=1.11.14\n\u001b[0m05:41:28  Registered adapter: duckdb=1.11.0\n\u001b[0m05:41:29  Found 1 model, 3 data tests, 1 source, 500 macros\n\u001b[0m05:41:29  \n\u001b[0m05:41:29  Concurrency: 1 threads (target='dev')\n\u001b[0m05:41:29  \n\u001b[0m05:41:29  1 of 4 START sql table model analytics.stg_order_status ........................ [RUN]\n\u001b[0m05:41:29  1 of 4 OK created sql table model analytics.stg_order_status ................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:41:29  2 of 4 START test accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [RUN]\n\u001b[0m05:41:29  2 of 4 FAIL 1 accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [\u001b[31mFAIL 1\u001b[0m in 0.05s]\n\u001b[0m05:41:29  3 of 4 START test not_null_stg_order_status_order_id ........................... [RUN]\n\u001b[0m05:41:29  3 of 4 PASS not_null_stg_order_status_order_id ................................. [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:41:29  4 of 4 START test unique_stg_order_status_order_id ............................. [RUN]\n\u001b[0m05:41:29  4 of 4 PASS unique_stg_order_status_order_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:41:29  \n\u001b[0m05:41:29  Finished running 1 table model, 3 data tests in 0 hours 0 minutes and 0.32 seconds (0.32s).\n\u001b[0m05:41:29  \n\u001b[0m05:41:29  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:41:29  \n\u001b[0m05:41:29  \u001b[31mFailure in test accepted_values_stg_order_status_business_status__revenue__refund__chargeback (models/schema.yml)\u001b[0m\n\u001b[0m05:41:29    Got 1 result, configured to fail if != 0\n\u001b[0m05:41:29  \n\u001b[0m05:41:29    compiled code at target/compiled/driftdoctor_case/models/schema.yml/accepted_values_stg_order_stat_3bf4eec3f0feaf6a32f0e78d35a66371.sql\n\u001b[0m05:41:29  \n\u001b[0m05:41:29  Done. PASS=3 WARN=0 ERROR=1 SKIP=0 NO-OP=0 TOTAL=4\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "business_rule_regression",
+  "status": "scored",
+  "system": "driftdoctor-no-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The project either rejects it or maps it incorrectly",
+        "The new value is not explicitly allowed in the validation rules"
+      ],
+      "files_to_change": [
+        "models/schema.yml",
+        "models/stg_order_status.sql"
+      ],
+      "hypothesis": "The new status value introduced by the source system is not explicitly handled in the transformation, leading to validation failures.",
+      "root_cause_class": "business_rule_regression"
+    },
+    "elapsed_seconds": 194.361,
+    "final_build": {
+      "returncode": 1,
+      "stderr": "",
+      "stdout": "\u001b[0m05:41:24  Running with dbt=1.11.14\n\u001b[0m05:41:25  Registered adapter: duckdb=1.11.0\n\u001b[0m05:41:25  Found 1 model, 3 data tests, 1 source, 500 macros\n\u001b[0m05:41:25  \n\u001b[0m05:41:25  Concurrency: 1 threads (target='dev')\n\u001b[0m05:41:25  \n\u001b[0m05:41:26  1 of 4 START sql table model analytics.stg_order_status ........................ [RUN]\n\u001b[0m05:41:26  1 of 4 OK created sql table model analytics.stg_order_status ................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:41:26  2 of 4 START test accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [RUN]\n\u001b[0m05:41:26  2 of 4 FAIL 1 accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [\u001b[31mFAIL 1\u001b[0m in 0.04s]\n\u001b[0m05:41:26  3 of 4 START test not_null_stg_order_status_order_id ........................... [RUN]\n\u001b[0m05:41:26  3 of 4 PASS not_null_stg_order_status_order_id ................................. [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:41:26  4 of 4 START test unique_stg_order_status_order_id ............................. [RUN]\n\u001b[0m05:41:26  4 of 4 PASS unique_stg_order_status_order_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  Finished running 1 table model, 3 data tests in 0 hours 0 minutes and 0.30 seconds (0.30s).\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  \u001b[31mFailure in test accepted_values_stg_order_status_business_status__revenue__refund__chargeback (models/schema.yml)\u001b[0m\n\u001b[0m05:41:26    Got 1 result, configured to fail if != 0\n\u001b[0m05:41:26  \n\u001b[0m05:41:26    compiled code at target/compiled/driftdoctor_case/models/schema.yml/accepted_values_stg_order_stat_3bf4eec3f0feaf6a32f0e78d35a66371.sql\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  Done. PASS=3 WARN=0 ERROR=1 SKIP=0 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 3,
+    "semantic_retries": 0,
+    "system": "driftdoctor-v0.2-no-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The project either rejects it or maps it incorrectly",
+            "The new value is not explicitly allowed in the validation rules"
+          ],
+          "files_to_change": [
+            "models/schema.yml",
+            "models/stg_order_status.sql"
+          ],
+          "hypothesis": "The new status value introduced by the source system is not explicitly handled in the transformation, leading to validation failures.",
+          "root_cause_class": "business_rule_regression"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/schema.yml"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m05:39:53  Running with dbt=1.11.14\n\u001b[0m05:39:53  Registered adapter: duckdb=1.11.0\n\u001b[0m05:39:54  Found 1 model, 3 data tests, 1 source, 500 macros\n\u001b[0m05:39:54  \n\u001b[0m05:39:54  Concurrency: 1 threads (target='dev')\n\u001b[0m05:39:54  \n\u001b[0m05:39:54  1 of 4 START sql table model analytics.stg_order_status ........................ [RUN]\n\u001b[0m05:39:54  1 of 4 OK created sql table model analytics.stg_order_status ................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:39:54  2 of 4 START test accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [RUN]\n\u001b[0m05:39:54  2 of 4 FAIL 1 accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [\u001b[31mFAIL 1\u001b[0m in 0.04s]\n\u001b[0m05:39:54  3 of 4 START test not_null_stg_order_status_order_id ........................... [RUN]\n\u001b[0m05:39:54  3 of 4 PASS not_null_stg_order_status_order_id ................................. [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:39:54  4 of 4 START test unique_stg_order_status_order_id ............................. [RUN]\n\u001b[0m05:39:54  4 of 4 PASS unique_stg_order_status_order_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:39:54  \n\u001b[0m05:39:54  Finished running 1 table model, 3 data tests in 0 hours 0 minutes and 0.31 seconds (0.31s).\n\u001b[0m05:39:54  \n\u001b[0m05:39:54  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:39:54  \n\u001b[0m05:39:54  \u001b[31mFailure in test accepted_values_stg_order_status_business_status__revenue__refund__chargeback (models/schema.yml)\u001b[0m\n\u001b[0m05:39:54    Got 1 result, configured to fail if != 0\n\u001b[0m05:39:54  \n\u001b[0m05:39:54    compiled code at target/compiled/driftdoctor_case/models/schema.yml/accepted_values_stg_order_stat_3bf4eec3f0feaf6a32f0e78d35a66371.sql\n\u001b[0m05:39:54  \n\u001b[0m05:39:54  Done. PASS=3 WARN=0 ERROR=1 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The new status value introduced by the source system is not explicitly handled in the transformation, leading to validation failures. To fix this, we need to explicitly allow the new status value in the validation rules.",
+          "files": [
+            {
+              "content": "version: 2\nmodels:\n  - name: stg_order_status\n    columns:\n      - name: order_id\n        data_tests: [unique, not_null]\n      - name: business_status\n        data_tests:\n          - accepted_values:\n              arguments:\n                values: ['revenue', 'refund', 'chargeback']\n",
+              "path": "models/schema.yml"
+            }
+          ]
+        },
+        "stage": "patch"
+      },
+      {
+        "applied": [
+          {
+            "applied": false,
+            "path": "models/schema.yml",
+            "reason": "no change"
+          },
+          {
+            "applied": true,
+            "path": "models/stg_order_status.sql"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m05:41:24  Running with dbt=1.11.14\n\u001b[0m05:41:25  Registered adapter: duckdb=1.11.0\n\u001b[0m05:41:25  Found 1 model, 3 data tests, 1 source, 500 macros\n\u001b[0m05:41:25  \n\u001b[0m05:41:25  Concurrency: 1 threads (target='dev')\n\u001b[0m05:41:25  \n\u001b[0m05:41:26  1 of 4 START sql table model analytics.stg_order_status ........................ [RUN]\n\u001b[0m05:41:26  1 of 4 OK created sql table model analytics.stg_order_status ................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:41:26  2 of 4 START test accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [RUN]\n\u001b[0m05:41:26  2 of 4 FAIL 1 accepted_values_stg_order_status_business_status__revenue__refund__chargeback  [\u001b[31mFAIL 1\u001b[0m in 0.04s]\n\u001b[0m05:41:26  3 of 4 START test not_null_stg_order_status_order_id ........................... [RUN]\n\u001b[0m05:41:26  3 of 4 PASS not_null_stg_order_status_order_id ................................. [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:41:26  4 of 4 START test unique_stg_order_status_order_id ............................. [RUN]\n\u001b[0m05:41:26  4 of 4 PASS unique_stg_order_status_order_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  Finished running 1 table model, 3 data tests in 0 hours 0 minutes and 0.30 seconds (0.30s).\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  \u001b[31mFailure in test accepted_values_stg_order_status_business_status__revenue__refund__chargeback (models/schema.yml)\u001b[0m\n\u001b[0m05:41:26    Got 1 result, configured to fail if != 0\n\u001b[0m05:41:26  \n\u001b[0m05:41:26    compiled code at target/compiled/driftdoctor_case/models/schema.yml/accepted_values_stg_order_stat_3bf4eec3f0feaf6a32f0e78d35a66371.sql\n\u001b[0m05:41:26  \n\u001b[0m05:41:26  Done. PASS=3 WARN=0 ERROR=1 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The new status value introduced by the source system is not explicitly handled in the transformation, leading to validation failures. To resolve this issue, we need to explicitly allow the new status value 'chargeback' in the validation rules. We can achieve this by adding the new status value to the `values` list in the `accepted_values` data test for the `business_status` column in the `schema.yml` file. Additionally, we need to ensure that the transformation correctly maps the new status value to the corresponding business status. We can achieve this by modifying the `stg_order_status.sql` file to include the new status value in the `case` statement. Finally, we need to run the `dbt build` command to apply the changes and resolve the validation failures. ",
+          "files": [
+            {
+              "content": "version: 2\nmodels:\n  - name: stg_order_status\n    columns:\n      - name: order_id\n        data_tests: [unique, not_null]\n      - name: business_status\n        data_tests:\n          - accepted_values:\n              arguments:\n                values: ['revenue', 'refund', 'chargeback']\n",
+              "path": "models/schema.yml"
+            },
+            {
+              "content": "select\n    order_id,\n    status,\n    case\n      when status = 'paid' then 'revenue'\n      when status = 'refunded' then 'refund'\n      when status = 'chargeback' then 'loss'\n      else 'unknown'\n    end as business_status\nfrom {{ source('raw', 'raw_orders') }}\n",
+              "path": "models/stg_order_status.sql"
+            }
+          ]
+        },
+        "stage": "build_retry"
+      }
+    ]
+  }
+}

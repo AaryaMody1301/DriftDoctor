@@ -1,0 +1,10 @@
+{
+  "case_id": "DD-002",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 31dcff6..4be141b 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/stg_customers.sql b/models/stg_customers.sql\nindex 4f7e3b3..449463c 100644\n--- a/models/stg_customers.sql\n+++ b/models/stg_customers.sql\n@@ -1,5 +1,6 @@\n select\n     customer_id,\n-    display_name,\n+    first_name,\n+    last_name,\n     revenue_amount\n from {{ source('raw', 'raw_customers') }}\n",
+  "error": "local inference transport failed after 2 attempts: timed out",
+  "error_type": "InferenceTransportError",
+  "model": "qwen2.5-coder:1.5b",
+  "status": "infrastructure_error",
+  "system": "driftdoctor-review"
+}

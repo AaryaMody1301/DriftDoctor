@@ -1,0 +1,94 @@
+{
+  "case_results": [
+    {
+      "case_id": "DD-001",
+      "elapsed_seconds": 220.088,
+      "model_calls": 4,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-003",
+      "elapsed_seconds": 263.486,
+      "model_calls": 5,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-006",
+      "elapsed_seconds": 167.803,
+      "model_calls": 4,
+      "passed": true,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-009",
+      "elapsed_seconds": 157.089,
+      "model_calls": 4,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-010",
+      "elapsed_seconds": 269.635,
+      "model_calls": 5,
+      "passed": false,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-011",
+      "elapsed_seconds": 149.064,
+      "model_calls": 4,
+      "passed": false,
+      "root_cause_correct": false
+    },
+    {
+      "case_id": "DD-012",
+      "elapsed_seconds": 311.228,
+      "model_calls": 5,
+      "passed": false,
+      "root_cause_correct": false
+    }
+  ],
+  "complete": false,
+  "context_version": "0.2",
+  "execution_mode": "three-shard-warm-model",
+  "expected_cases": 12,
+  "infrastructure_errors": [
+    {
+      "case_id": "DD-002",
+      "error": "local inference transport failed after 2 attempts: timed out",
+      "error_type": "InferenceTransportError"
+    },
+    {
+      "case_id": "DD-004",
+      "error": "local inference transport failed after 2 attempts: timed out",
+      "error_type": "InferenceTransportError"
+    },
+    {
+      "case_id": "DD-005",
+      "error": "local inference transport failed after 2 attempts: timed out",
+      "error_type": "InferenceTransportError"
+    },
+    {
+      "case_id": "DD-007",
+      "error": "local inference transport failed after 2 attempts: timed out",
+      "error_type": "InferenceTransportError"
+    },
+    {
+      "case_id": "DD-008",
+      "error": "case artifact missing",
+      "error_type": "MissingCaseRecord"
+    }
+  ],
+  "mean_elapsed_seconds": 219.77042857142857,
+  "mean_model_calls": 4.428571428571429,
+  "model": "qwen2.5-coder:1.5b",
+  "root_cause_accuracy": null,
+  "root_cause_correct": 1,
+  "scored_cases": 7,
+  "solved": 1,
+  "system": "driftdoctor-review",
+  "transport_timeout_seconds": 1200,
+  "verified_resolution_rate": null
+}

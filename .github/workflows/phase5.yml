@@ -1,15 +1,14 @@
 name: phase5-experiments
 
 on:
-  pull_request:
-    paths:
-      - "benchmark/**"
-      - "baseline/**"
-      - "driftdoctor/**"
-      - "scripts/run_phase5.py"
-      - ".github/workflows/phase5.yml"
-      - "requirements.txt"
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5-experiments-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   experiment:

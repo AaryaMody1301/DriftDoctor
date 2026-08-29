@@ -1,0 +1,97 @@
+{
+  "case_id": "DD-011",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 8b97498..da8c668 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/revenue_summary.sql b/models/revenue_summary.sql\nindex 0cb195b..57febcb 100644\n--- a/models/revenue_summary.sql\n+++ b/models/revenue_summary.sql\n@@ -1,5 +1,5 @@\n select\n     sum(case when kind = 'sale' then amount else 0 end) as gross_sales,\n     sum(case when kind = 'refund' then amount else 0 end) as refunds,\n-    sum(amount) as net_revenue\n+    gross_sales + refunds as net_revenue\n from {{ source('raw', 'raw_transactions') }}\n",
+  "elapsed_seconds": 79.123,
+  "incident": "The project is green, but refund handling changed and net revenue is now wrong. Locate the semantic defect and restore the documented accounting rule.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 2,
+  "oracle": {
+    "case_id": "DD-011",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[150, 20, 130]]; actual=[[150, 20, 170]]",
+        "name": "accounting_rule",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m05:57:43  Running with dbt=1.11.14\n\u001b[0m05:57:44  Registered adapter: duckdb=1.11.0\n\u001b[0m05:57:44  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m05:57:44  \n\u001b[0m05:57:44  Concurrency: 1 threads (target='dev')\n\u001b[0m05:57:44  \n\u001b[0m05:57:44  1 of 3 START sql table model analytics.revenue_summary ......................... [RUN]\n\u001b[0m05:57:44  1 of 3 OK created sql table model analytics.revenue_summary .................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:57:44  2 of 3 START test not_null_revenue_summary_gross_sales ......................... [RUN]\n\u001b[0m05:57:44  2 of 3 PASS not_null_revenue_summary_gross_sales ............................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m05:57:44  3 of 3 START test not_null_revenue_summary_net_revenue ......................... [RUN]\n\u001b[0m05:57:44  3 of 3 PASS not_null_revenue_summary_net_revenue ............................... [\u001b[32mPASS\u001b[0m in 0.01s]\n\u001b[0m05:57:44  \n\u001b[0m05:57:44  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.36 seconds (0.36s).\n\u001b[0m05:57:45  \n\u001b[0m05:57:45  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:57:45  \n\u001b[0m05:57:45  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-no-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The net revenue calculation was wrong after the refund handling change."
+      ],
+      "files_to_change": [
+        "models/revenue_summary.sql",
+        "models/schema.yml",
+        "models/sources.yml"
+      ],
+      "hypothesis": "The refund handling changed, but the net revenue calculation was not updated accordingly.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 79.123,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m05:57:40  Running with dbt=1.11.14\n\u001b[0m05:57:40  Registered adapter: duckdb=1.11.0\n\u001b[0m05:57:41  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  Concurrency: 1 threads (target='dev')\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  1 of 3 START sql table model analytics.revenue_summary ......................... [RUN]\n\u001b[0m05:57:41  1 of 3 OK created sql table model analytics.revenue_summary .................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:57:41  2 of 3 START test not_null_revenue_summary_gross_sales ......................... [RUN]\n\u001b[0m05:57:41  2 of 3 PASS not_null_revenue_summary_gross_sales ............................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m05:57:41  3 of 3 START test not_null_revenue_summary_net_revenue ......................... [RUN]\n\u001b[0m05:57:41  3 of 3 PASS not_null_revenue_summary_net_revenue ............................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.29 seconds (0.29s).\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 2,
+    "semantic_retries": 0,
+    "system": "driftdoctor-v0.2-no-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The net revenue calculation was wrong after the refund handling change."
+          ],
+          "files_to_change": [
+            "models/revenue_summary.sql",
+            "models/schema.yml",
+            "models/sources.yml"
+          ],
+          "hypothesis": "The refund handling changed, but the net revenue calculation was not updated accordingly.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/revenue_summary.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m05:57:40  Running with dbt=1.11.14\n\u001b[0m05:57:40  Registered adapter: duckdb=1.11.0\n\u001b[0m05:57:41  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  Concurrency: 1 threads (target='dev')\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  1 of 3 START sql table model analytics.revenue_summary ......................... [RUN]\n\u001b[0m05:57:41  1 of 3 OK created sql table model analytics.revenue_summary .................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m05:57:41  2 of 3 START test not_null_revenue_summary_gross_sales ......................... [RUN]\n\u001b[0m05:57:41  2 of 3 PASS not_null_revenue_summary_gross_sales ............................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m05:57:41  3 of 3 START test not_null_revenue_summary_net_revenue ......................... [RUN]\n\u001b[0m05:57:41  3 of 3 PASS not_null_revenue_summary_net_revenue ............................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.29 seconds (0.29s).\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m05:57:41  \n\u001b[0m05:57:41  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "The semantic defect lies in the net revenue calculation. The current calculation subtracts the negative refund amount from the gross sales, which is incorrect. The correct calculation should be the sum of the gross sales and the refunds.",
+          "files": [
+            {
+              "content": "select\n    sum(case when kind = 'sale' then amount else 0 end) as gross_sales,\n    sum(case when kind = 'refund' then amount else 0 end) as refunds,\n    gross_sales + refunds as net_revenue\nfrom {{ source('raw', 'raw_transactions') }}\n",
+              "path": "models/revenue_summary.sql"
+            }
+          ]
+        },
+        "stage": "patch"
+      }
+    ]
+  }
+}

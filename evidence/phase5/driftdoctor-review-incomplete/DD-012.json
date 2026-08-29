@@ -1,0 +1,190 @@
+{
+  "case_id": "DD-012",
+  "context_version": "0.2",
+  "diff": "diff --git a/models/schema.yml b/models/schema.yml\nindex eab8e06..29762d5 100644\n--- a/models/schema.yml\n+++ b/models/schema.yml\n@@ -4,3 +4,7 @@ models:\n     columns:\n       - name: customer_id\n         data_tests: [unique, not_null]\n+      - name: client_name\n+        data_tests: [unique, not_null]\n+      - name: revenue_amount\n+        data_tests: [unique, not_null]\ndiff --git a/models/stg_customer_revenue.sql b/models/stg_customer_revenue.sql\nindex a2c8067..0f147e5 100644\n--- a/models/stg_customer_revenue.sql\n+++ b/models/stg_customer_revenue.sql\n@@ -1,5 +1,5 @@\n select\n     customer_id,\n-    customer_name,\n-    revenue_text * 1.0 as revenue_amount\n+    client_name,\n+    CAST(revenue_text AS DECIMAL(2,1)) * 1.0 as revenue_amount\n from {{ source('raw', 'raw_customer_revenue') }}\n",
+  "elapsed_seconds": 311.228,
+  "incident": "A customer revenue mart fails after an upstream migration. More than one independent upstream change is present. Diagnose all causal faults and restore the mart without masking invalid source data.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 5,
+  "oracle": {
+    "case_id": "DD-012",
+    "checks": [
+      {
+        "detail": "returncode=1",
+        "name": "dbt_build_succeeds",
+        "passed": false
+      },
+      {
+        "detail": "query error: Catalog Error: Table with name mart_customer_revenue does not exist!\nDid you mean \"raw.raw_customer_revenue\"?\n\nLINE 1: select customer_id, customer_name, revenue_amount from analytics.mart_customer_revenue order by customer_id\n                                                               ^",
+        "name": "multi_fault_output_contract",
+        "passed": false
+      },
+      {
+        "detail": "query error: Catalog Error: Table with name mart_customer_revenue does not exist!\nDid you mean \"raw.raw_customer_revenue\"?\n\nLINE 1: select count(*) from analytics.mart_customer_revenue where customer_id = 2 and...\n                             ^",
+        "name": "invalid_source_value_handled_explicitly",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 1,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m09:35:51  Running with dbt=1.11.14\n\u001b[0m09:35:51  Registered adapter: duckdb=1.11.0\n\u001b[0m09:35:52  Found 2 models, 6 data tests, 1 source, 500 macros\n\u001b[0m09:35:52  \n\u001b[0m09:35:52  Concurrency: 1 threads (target='dev')\n\u001b[0m09:35:52  \n\u001b[0m09:35:52  1 of 8 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m09:35:52  1 of 8 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m09:35:52  2 of 8 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:52  3 of 8 SKIP test not_null_mart_customer_revenue_client_name .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:52  4 of 8 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:52  5 of 8 SKIP test not_null_mart_customer_revenue_revenue_amount ................. [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:52  6 of 8 SKIP test unique_mart_customer_revenue_client_name ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:52  7 of 8 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:52  8 of 8 SKIP test unique_mart_customer_revenue_revenue_amount ................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:52  \n\u001b[0m09:35:52  Finished running 2 table models, 6 data tests in 0 hours 0 minutes and 0.20 seconds (0.20s).\n\u001b[0m09:35:52  \n\u001b[0m09:35:52  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:35:52  \n\u001b[0m09:35:52  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m09:35:52    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Conversion Error: Could not convert string \"100.00\" to DECIMAL(2,1) when casting from source column revenue_text\n  \n  LINE 13:     CAST(revenue_text AS DECIMAL(2,1)) * 1.0 as revenue_amount\n               ^\n\u001b[0m09:35:52  \n\u001b[0m09:35:52    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m09:35:52  \n\u001b[0m09:35:52  Done. PASS=0 WARN=0 ERROR=1 SKIP=7 NO-OP=0 TOTAL=8\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The error message indicates that the referenced column 'customer_name' is not found in the FROM clause."
+      ],
+      "files_to_change": [
+        "models/stg_customer_revenue.sql",
+        "models/schema.yml"
+      ],
+      "hypothesis": "The upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 311.228,
+    "final_build": {
+      "returncode": 1,
+      "stderr": "",
+      "stdout": "\u001b[0m09:35:48  Running with dbt=1.11.14\n\u001b[0m09:35:48  Registered adapter: duckdb=1.11.0\n\u001b[0m09:35:49  Found 2 models, 6 data tests, 1 source, 500 macros\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  Concurrency: 1 threads (target='dev')\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  1 of 8 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m09:35:49  1 of 8 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m09:35:49  2 of 8 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  3 of 8 SKIP test not_null_mart_customer_revenue_client_name .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  4 of 8 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  5 of 8 SKIP test not_null_mart_customer_revenue_revenue_amount ................. [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  6 of 8 SKIP test unique_mart_customer_revenue_client_name ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  7 of 8 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  8 of 8 SKIP test unique_mart_customer_revenue_revenue_amount ................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  Finished running 2 table models, 6 data tests in 0 hours 0 minutes and 0.20 seconds (0.20s).\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m09:35:49    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Conversion Error: Could not convert string \"100.00\" to DECIMAL(2,1) when casting from source column revenue_text\n  \n  LINE 13:     CAST(revenue_text AS DECIMAL(2,1)) * 1.0 as revenue_amount\n               ^\n\u001b[0m09:35:49  \n\u001b[0m09:35:49    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  Done. PASS=0 WARN=0 ERROR=1 SKIP=7 NO-OP=0 TOTAL=8\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 5,
+    "semantic_retries": 1,
+    "system": "driftdoctor-v0.2-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The error message indicates that the referenced column 'customer_name' is not found in the FROM clause."
+          ],
+          "files_to_change": [
+            "models/stg_customer_revenue.sql",
+            "models/schema.yml"
+          ],
+          "hypothesis": "The upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_customer_revenue.sql"
+          },
+          {
+            "applied": false,
+            "path": "models/schema.yml",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m09:32:13  Running with dbt=1.11.14\n\u001b[0m09:32:13  Registered adapter: duckdb=1.11.0\n\u001b[0m09:32:14  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m09:32:14  \n\u001b[0m09:32:14  Concurrency: 1 threads (target='dev')\n\u001b[0m09:32:14  \n\u001b[0m09:32:14  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m09:32:14  1 of 4 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m09:32:14  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:32:14  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:32:14  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:32:14  \n\u001b[0m09:32:14  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.19 seconds (0.19s).\n\u001b[0m09:32:14  \n\u001b[0m09:32:14  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:32:14  \n\u001b[0m09:32:14  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m09:32:14    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Binder Error: No function matches the given name and argument types '*(VARCHAR, DECIMAL(2,1))'. You might need to add explicit type casts.\n  \tCandidate functions:\n  \t*(TINYINT, TINYINT) -> TINYINT\n  \t*(SMALLINT, SMALLINT) -> SMALLINT\n  \t*(INTEGER, INTEGER) -> INTEGER\n  \t*(BIGINT, BIGINT) -> BIGINT\n  \t*(HUGEINT, HUGEINT) -> HUGEINT\n  \t*(FLOAT, FLOAT) -> FLOAT\n  \t*(DOUBLE, DOUBLE) -> DOUBLE\n  \t*(DECIMAL, DECIMAL) -> DECIMAL\n  \t*(UTINYINT, UTINYINT) -> UTINYINT\n  \t*(USMALLINT, USMALLINT) -> USMALLINT\n  \t*(UINTEGER, UINTEGER) -> UINTEGER\n  \t*(UBIGINT, UBIGINT) -> UBIGINT\n  \t*(UHUGEINT, UHUGEINT) -> UHUGEINT\n  \t*(INTERVAL, DOUBLE) -> INTERVAL\n  \t*(DOUBLE, INTERVAL) -> INTERVAL\n  \t*(BIGINT, INTERVAL) -> INTERVAL\n  \t*(INTERVAL, BIGINT) -> INTERVAL\n  \n  \n  LINE 13:     revenue_text * 1.0 as revenue_amount\n                            ^\n\u001b[0m09:32:14  \n\u001b[0m09:32:14    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m09:32:14  \n\u001b[0m09:32:14  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the referenced column 'customer_name' is not found in the FROM clause. This is because the upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    client_name,\n    revenue_text * 1.0 as revenue_amount\nfrom {{ source('raw', 'raw_customer_revenue') }}\n",
+              "path": "models/stg_customer_revenue.sql"
+            },
+            {
+              "content": "version: 2\nmodels:\n  - name: mart_customer_revenue\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n",
+              "path": "models/schema.yml"
+            }
+          ]
+        },
+        "stage": "patch"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_customer_revenue.sql"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m09:33:49  Running with dbt=1.11.14\n\u001b[0m09:33:49  Registered adapter: duckdb=1.11.0\n\u001b[0m09:33:50  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m09:33:50  \n\u001b[0m09:33:50  Concurrency: 1 threads (target='dev')\n\u001b[0m09:33:50  \n\u001b[0m09:33:50  1 of 4 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m09:33:50  1 of 4 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m09:33:50  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:33:50  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:33:50  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:33:50  \n\u001b[0m09:33:50  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.19 seconds (0.19s).\n\u001b[0m09:33:50  \n\u001b[0m09:33:50  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:33:50  \n\u001b[0m09:33:50  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m09:33:50    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Conversion Error: Could not convert string \"100.00\" to DECIMAL(2,1) when casting from source column revenue_text\n  \n  LINE 13:     CAST(revenue_text AS DECIMAL(2,1)) * 1.0 as revenue_amount\n               ^\n\u001b[0m09:33:50  \n\u001b[0m09:33:50    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m09:33:50  \n\u001b[0m09:33:50  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the function `*` does not match the given name and argument types `*(VARCHAR, DECIMAL(2,1))`. This is because the `revenue_text` column is of type `VARCHAR` and the `revenue_amount` column is of type `DECIMAL(2,1)`. The `*` operator is used for multiplication, but it cannot be used with these types directly. To fix this issue, you need to explicitly cast the `revenue_text` column to `DECIMAL(2,1)` before performing the multiplication. You can do this by adding the following line to the `stg_customer_revenue.sql` file: `revenue_amount = CAST(revenue_text AS DECIMAL(2,1)) * 1.0`. This will ensure that the multiplication is performed correctly and that the result is of the correct type. Once you have made this change, you can run the `dbt build` command again to restore the mart without masking invalid source data. ",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    client_name,\n    CAST(revenue_text AS DECIMAL(2,1)) * 1.0 as revenue_amount\nfrom {{ source('raw', 'raw_customer_revenue') }}\n",
+              "path": "models/stg_customer_revenue.sql"
+            }
+          ]
+        },
+        "stage": "build_retry"
+      },
+      {
+        "output": {
+          "reason": "The error message indicates that the referenced column 'customer_name' is not found in the FROM clause. This suggests that the upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name. To resolve this issue, you need to update the model to reference the new column name 'client_name'. Additionally, you need to ensure that the data in the 'revenue_text' column is valid numeric text before attempting to cast it to DECIMAL(2,1). You can achieve this by adding a data validation step to the model that checks if the 'revenue_text' column contains valid numeric text before attempting to cast it. Once you have made these changes, you can run the dbt build command again to verify that the model is functioning correctly.",
+          "suggested_focus": "Update the model to reference the new column name 'client_name' and add a data validation step to check if the 'revenue_text' column contains valid numeric text before attempting to cast it.",
+          "verdict": "retry"
+        },
+        "stage": "semantic_review"
+      },
+      {
+        "applied": [
+          {
+            "applied": false,
+            "path": "models/mart_customer_revenue.sql",
+            "reason": "no change"
+          },
+          {
+            "applied": true,
+            "path": "models/schema.yml"
+          },
+          {
+            "applied": false,
+            "path": "models/sources.yml",
+            "reason": "no change"
+          },
+          {
+            "applied": false,
+            "path": "models/stg_customer_revenue.sql",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m09:35:48  Running with dbt=1.11.14\n\u001b[0m09:35:48  Registered adapter: duckdb=1.11.0\n\u001b[0m09:35:49  Found 2 models, 6 data tests, 1 source, 500 macros\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  Concurrency: 1 threads (target='dev')\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  1 of 8 START sql table model analytics.stg_customer_revenue .................... [RUN]\n\u001b[0m09:35:49  1 of 8 ERROR creating sql table model analytics.stg_customer_revenue ........... [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m09:35:49  2 of 8 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  3 of 8 SKIP test not_null_mart_customer_revenue_client_name .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  4 of 8 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  5 of 8 SKIP test not_null_mart_customer_revenue_revenue_amount ................. [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  6 of 8 SKIP test unique_mart_customer_revenue_client_name ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  7 of 8 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  8 of 8 SKIP test unique_mart_customer_revenue_revenue_amount ................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  Finished running 2 table models, 6 data tests in 0 hours 0 minutes and 0.20 seconds (0.20s).\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  \u001b[31mFailure in model stg_customer_revenue (models/stg_customer_revenue.sql)\u001b[0m\n\u001b[0m09:35:49    Runtime Error in model stg_customer_revenue (models/stg_customer_revenue.sql)\n  Conversion Error: Could not convert string \"100.00\" to DECIMAL(2,1) when casting from source column revenue_text\n  \n  LINE 13:     CAST(revenue_text AS DECIMAL(2,1)) * 1.0 as revenue_amount\n               ^\n\u001b[0m09:35:49  \n\u001b[0m09:35:49    compiled code at target/compiled/driftdoctor_case/models/stg_customer_revenue.sql\n\u001b[0m09:35:49  \n\u001b[0m09:35:49  Done. PASS=0 WARN=0 ERROR=1 SKIP=7 NO-OP=0 TOTAL=8\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the referenced column 'customer_name' is not found in the FROM clause. This suggests that the upstream migration renamed the 'customer_name' column to 'client_name', but the model is still referencing the old column name. To resolve this issue, you need to update the model to reference the new column name 'client_name'. Additionally, you need to ensure that the data in the 'revenue_text' column is valid numeric text before attempting to cast it to DECIMAL(2,1). You can achieve this by adding a data validation step to the model that checks if the 'revenue_text' column contains valid numeric text before attempting to cast it. Once you have made these changes, you can run the dbt build command again to verify that the model is functioning correctly.",
+          "files": [
+            {
+              "content": "select * from {{ ref('stg_customer_revenue') }}\n",
+              "path": "models/mart_customer_revenue.sql"
+            },
+            {
+              "content": "version: 2\nmodels:\n  - name: mart_customer_revenue\n    columns:\n      - name: customer_id\n        data_tests: [unique, not_null]\n      - name: client_name\n        data_tests: [unique, not_null]\n      - name: revenue_amount\n        data_tests: [unique, not_null]\n",
+              "path": "models/schema.yml"
+            },
+            {
+              "content": "version: 2\n\nsources:\n  - name: raw\n    schema: raw\n    tables:\n      - name: raw_customer_revenue\n",
+              "path": "models/sources.yml"
+            },
+            {
+              "content": "select\n    customer_id,\n    client_name,\n    CAST(revenue_text AS DECIMAL(2,1)) * 1.0 as revenue_amount\nfrom {{ source('raw', 'raw_customer_revenue') }}\n",
+              "path": "models/stg_customer_revenue.sql"
+            }
+          ]
+        },
+        "stage": "semantic_retry"
+      }
+    ]
+  }
+}

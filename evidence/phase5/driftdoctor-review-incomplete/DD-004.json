@@ -1,0 +1,10 @@
+{
+  "case_id": "DD-004",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 94152c3..19e2c67 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/mart_orders.sql b/models/mart_orders.sql\nindex a70c196..eba0cac 100644\n--- a/models/mart_orders.sql\n+++ b/models/mart_orders.sql\n@@ -2,4 +2,4 @@ select\n     order_id,\n     customer_id,\n     amount\n-from {{ ref('stg_orders') }}\n+from {{ ref('stg_orders_v2') }}\n",
+  "error": "local inference transport failed after 2 attempts: timed out",
+  "error_type": "InferenceTransportError",
+  "model": "qwen2.5-coder:1.5b",
+  "status": "infrastructure_error",
+  "system": "driftdoctor-review"
+}

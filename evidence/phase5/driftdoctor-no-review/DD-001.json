@@ -1,0 +1,129 @@
+{
+  "case_id": "DD-001",
+  "context_version": "0.2",
+  "diff": "",
+  "elapsed_seconds": 172.976,
+  "incident": "The customer revenue pipeline started failing after an upstream schema change. Diagnose the failure and restore the project without changing the intended output contract.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 3,
+  "oracle": {
+    "case_id": "DD-001",
+    "checks": [
+      {
+        "detail": "returncode=1",
+        "name": "dbt_build_succeeds",
+        "passed": false
+      },
+      {
+        "detail": "[]",
+        "name": "downstream_contract_preserved",
+        "passed": false
+      },
+      {
+        "detail": "query error: Catalog Error: Table with name mart_customer_revenue does not exist!\nDid you mean \"raw.raw_customers\"?\n\nLINE 1: select customer_id, customer_name, revenue_amount from analytics.mart_customer_revenue order by customer_id\n                                                               ^",
+        "name": "renamed_source_field_regression",
+        "passed": false
+      }
+    ],
+    "dbt_returncode": 1,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m05:26:17  Running with dbt=1.11.14\n\u001b[0m05:26:18  Registered adapter: duckdb=1.11.0\n\u001b[0m05:26:18  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:26:18  \n\u001b[0m05:26:18  Concurrency: 1 threads (target='dev')\n\u001b[0m05:26:18  \n\u001b[0m05:26:18  1 of 4 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m05:26:18  1 of 4 ERROR creating sql table model analytics.stg_customers .................. [\u001b[31mERROR\u001b[0m in 0.07s]\n\u001b[0m05:26:18  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:18  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:18  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:18  \n\u001b[0m05:26:18  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.28 seconds (0.28s).\n\u001b[0m05:26:18  \n\u001b[0m05:26:18  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:26:18  \n\u001b[0m05:26:18  \u001b[31mFailure in model stg_customers (models/stg_customers.sql)\u001b[0m\n\u001b[0m05:26:18    Runtime Error in model stg_customers (models/stg_customers.sql)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 12:     customer_name,\n               ^\n\u001b[0m05:26:18  \n\u001b[0m05:26:18    compiled code at target/compiled/driftdoctor_case/models/stg_customers.sql\n\u001b[0m05:26:18  \n\u001b[0m05:26:18  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n",
+    "passed": false
+  },
+  "passed": false,
+  "root_cause_correct": false,
+  "root_cause_prediction": "model_ref_renamed",
+  "status": "scored",
+  "system": "driftdoctor-no-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database."
+      ],
+      "files_to_change": [
+        "models/stg_customers.sql",
+        "models/schema.yml",
+        "models/sources.yml",
+        "models/mart_customer_revenue.sql"
+      ],
+      "hypothesis": "The upstream schema change renamed the human-readable customer field, but downstream names must remain stable. This caused the model to fail because it was unable to find the referenced column 'customer_name' in the FROM clause.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 172.976,
+    "final_build": {
+      "returncode": 1,
+      "stderr": "",
+      "stdout": "\u001b[0m05:26:14  Running with dbt=1.11.14\n\u001b[0m05:26:14  Registered adapter: duckdb=1.11.0\n\u001b[0m05:26:15  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  Concurrency: 1 threads (target='dev')\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  1 of 4 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m05:26:15  1 of 4 ERROR creating sql table model analytics.stg_customers .................. [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:26:15  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:15  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:15  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.32 seconds (0.32s).\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  \u001b[31mFailure in model stg_customers (models/stg_customers.sql)\u001b[0m\n\u001b[0m05:26:15    Runtime Error in model stg_customers (models/stg_customers.sql)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 12:     customer_name,\n               ^\n\u001b[0m05:26:15  \n\u001b[0m05:26:15    compiled code at target/compiled/driftdoctor_case/models/stg_customers.sql\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 3,
+    "semantic_retries": 0,
+    "system": "driftdoctor-v0.2-no-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database."
+          ],
+          "files_to_change": [
+            "models/stg_customers.sql",
+            "models/schema.yml",
+            "models/sources.yml",
+            "models/mart_customer_revenue.sql"
+          ],
+          "hypothesis": "The upstream schema change renamed the human-readable customer field, but downstream names must remain stable. This caused the model to fail because it was unable to find the referenced column 'customer_name' in the FROM clause.",
+          "root_cause_class": "model_ref_renamed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": false,
+            "path": "models/stg_customers.sql",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m05:25:02  Running with dbt=1.11.14\n\u001b[0m05:25:02  Registered adapter: duckdb=1.11.0\n\u001b[0m05:25:03  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:25:03  \n\u001b[0m05:25:03  Concurrency: 1 threads (target='dev')\n\u001b[0m05:25:03  \n\u001b[0m05:25:03  1 of 4 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m05:25:03  1 of 4 ERROR creating sql table model analytics.stg_customers .................. [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:25:03  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:25:03  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:25:03  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:25:03  \n\u001b[0m05:25:03  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.27 seconds (0.27s).\n\u001b[0m05:25:03  \n\u001b[0m05:25:03  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:25:03  \n\u001b[0m05:25:03  \u001b[31mFailure in model stg_customers (models/stg_customers.sql)\u001b[0m\n\u001b[0m05:25:03    Runtime Error in model stg_customers (models/stg_customers.sql)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 12:     customer_name,\n               ^\n\u001b[0m05:25:03  \n\u001b[0m05:25:03    compiled code at target/compiled/driftdoctor_case/models/stg_customers.sql\n\u001b[0m05:25:03  \n\u001b[0m05:25:03  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database. To fix this issue, we need to update the model to use the correct column name 'customer_name' in the FROM clause.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    customer_name,\n    revenue_amount\nfrom {{ source('raw', 'raw_customers') }}\n",
+              "path": "models/stg_customers.sql"
+            }
+          ]
+        },
+        "stage": "patch"
+      },
+      {
+        "applied": [
+          {
+            "applied": false,
+            "path": "models/stg_customers.sql",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 1,
+          "stderr": "",
+          "stdout": "\u001b[0m05:26:14  Running with dbt=1.11.14\n\u001b[0m05:26:14  Registered adapter: duckdb=1.11.0\n\u001b[0m05:26:15  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  Concurrency: 1 threads (target='dev')\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  1 of 4 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m05:26:15  1 of 4 ERROR creating sql table model analytics.stg_customers .................. [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m05:26:15  2 of 4 SKIP relation analytics.mart_customer_revenue ........................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:15  3 of 4 SKIP test not_null_mart_customer_revenue_customer_id .................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:15  4 of 4 SKIP test unique_mart_customer_revenue_customer_id ...................... [\u001b[33mSKIP\u001b[0m]\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.32 seconds (0.32s).\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  \u001b[31mFailure in model stg_customers (models/stg_customers.sql)\u001b[0m\n\u001b[0m05:26:15    Runtime Error in model stg_customers (models/stg_customers.sql)\n  Binder Error: Referenced column \"customer_name\" not found in FROM clause!\n  Candidate bindings: \"customer_id\", \"revenue_amount\", \"full_name\"\n  \n  LINE 12:     customer_name,\n               ^\n\u001b[0m05:26:15  \n\u001b[0m05:26:15    compiled code at target/compiled/driftdoctor_case/models/stg_customers.sql\n\u001b[0m05:26:15  \n\u001b[0m05:26:15  Done. PASS=0 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "The error message indicates that the referenced column 'customer_name' was not found in the FROM clause. This suggests that the model was trying to access a column that no longer exists in the database. To resolve this issue, we need to update the model to use the correct column name 'customer_name' in the FROM clause.",
+          "files": [
+            {
+              "content": "select\n    customer_id,\n    customer_name,\n    revenue_amount\nfrom {{ source('raw', 'raw_customers') }}\n",
+              "path": "models/stg_customers.sql"
+            }
+          ]
+        },
+        "stage": "build_retry"
+      }
+    ]
+  }
+}

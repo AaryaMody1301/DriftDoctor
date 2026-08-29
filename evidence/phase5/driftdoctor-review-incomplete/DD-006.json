@@ -1,0 +1,137 @@
+{
+  "case_id": "DD-006",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex e1bc475..606712b 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/stg_customers.sql b/models/stg_customers.sql\nindex af4c6ea..706e3ff 100644\n--- a/models/stg_customers.sql\n+++ b/models/stg_customers.sql\n@@ -3,3 +3,4 @@ select\n     customer_id,\n     customer_name\n from {{ source('raw', 'raw_customers') }}\n+where customer_id is not null\n\\ No newline at end of file\n",
+  "elapsed_seconds": 167.803,
+  "incident": "A previously reliable customer model now fails a data-quality check because required identifiers are becoming null. Diagnose whether the defect is in source handling or downstream logic and repair it safely.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 4,
+  "oracle": {
+    "case_id": "DD-006",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=0; actual=0",
+        "name": "required_identifier_not_null",
+        "passed": true
+      },
+      {
+        "detail": "expected=2; actual=2",
+        "name": "frozen_row_count",
+        "passed": true
+      },
+      {
+        "detail": "expected=[['C001'], ['C003']]; actual=[['C001'], ['C003']]",
+        "name": "no_invented_identifiers",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m10:28:04  Running with dbt=1.11.14\n\u001b[0m10:28:05  Registered adapter: duckdb=1.11.0\n\u001b[0m10:28:05  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m10:28:05  \n\u001b[0m10:28:05  Concurrency: 1 threads (target='dev')\n\u001b[0m10:28:05  \n\u001b[0m10:28:05  1 of 3 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m10:28:05  1 of 3 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m10:28:05  2 of 3 START test not_null_stg_customers_customer_id ........................... [RUN]\n\u001b[0m10:28:05  2 of 3 PASS not_null_stg_customers_customer_id ................................. [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m10:28:05  3 of 3 START test unique_stg_customers_customer_id ............................. [RUN]\n\u001b[0m10:28:05  3 of 3 PASS unique_stg_customers_customer_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m10:28:05  \n\u001b[0m10:28:05  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.35 seconds (0.35s).\n\u001b[0m10:28:05  \n\u001b[0m10:28:05  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:28:05  \n\u001b[0m10:28:05  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n",
+    "passed": true
+  },
+  "passed": true,
+  "root_cause_correct": false,
+  "root_cause_prediction": "source_type_changed",
+  "status": "scored",
+  "system": "driftdoctor-review",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "The customer_id column is now nullable in the source data."
+      ],
+      "files_to_change": [
+        "models/schema.yml",
+        "models/stg_customers.sql"
+      ],
+      "hypothesis": "The source handling has changed, and the customer_id column is now nullable.",
+      "root_cause_class": "source_type_changed"
+    },
+    "elapsed_seconds": 167.803,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m10:28:02  Running with dbt=1.11.14\n\u001b[0m10:28:02  Registered adapter: duckdb=1.11.0\n\u001b[0m10:28:02  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m10:28:02  \n\u001b[0m10:28:02  Concurrency: 1 threads (target='dev')\n\u001b[0m10:28:02  \n\u001b[0m10:28:02  1 of 3 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m10:28:03  1 of 3 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m10:28:03  2 of 3 START test not_null_stg_customers_customer_id ........................... [RUN]\n\u001b[0m10:28:03  2 of 3 PASS not_null_stg_customers_customer_id ................................. [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m10:28:03  3 of 3 START test unique_stg_customers_customer_id ............................. [RUN]\n\u001b[0m10:28:03  3 of 3 PASS unique_stg_customers_customer_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m10:28:03  \n\u001b[0m10:28:03  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.34 seconds (0.34s).\n\u001b[0m10:28:03  \n\u001b[0m10:28:03  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:28:03  \n\u001b[0m10:28:03  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 4,
+    "semantic_retries": 1,
+    "system": "driftdoctor-v0.2-review",
+    "trajectory": [
+      {
+        "output": {
+          "evidence": [
+            "The customer_id column is now nullable in the source data."
+          ],
+          "files_to_change": [
+            "models/schema.yml",
+            "models/stg_customers.sql"
+          ],
+          "hypothesis": "The source handling has changed, and the customer_id column is now nullable.",
+          "root_cause_class": "source_type_changed"
+        },
+        "stage": "diagnose"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_customers.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m10:26:33  Running with dbt=1.11.14\n\u001b[0m10:26:34  Registered adapter: duckdb=1.11.0\n\u001b[0m10:26:34  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m10:26:34  \n\u001b[0m10:26:34  Concurrency: 1 threads (target='dev')\n\u001b[0m10:26:34  \n\u001b[0m10:26:35  1 of 3 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m10:26:35  1 of 3 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m10:26:35  2 of 3 START test not_null_stg_customers_customer_id ........................... [RUN]\n\u001b[0m10:26:35  2 of 3 PASS not_null_stg_customers_customer_id ................................. [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m10:26:35  3 of 3 START test unique_stg_customers_customer_id ............................. [RUN]\n\u001b[0m10:26:35  3 of 3 PASS unique_stg_customers_customer_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m10:26:35  \n\u001b[0m10:26:35  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.29 seconds (0.29s).\n\u001b[0m10:26:35  \n\u001b[0m10:26:35  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:26:35  \n\u001b[0m10:26:35  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "The defect is in the source handling, and the customer_id column is now nullable. To fix this, we need to ensure that the customer_id column is not null in the source data. We can achieve this by adding a check in the source query to ensure that the customer_id column is not null before inserting or updating the data.",
+          "files": [
+            {
+              "content": "select\n    record_id,\n    customer_id,\n    customer_name\nfrom {{ source('raw', 'raw_customers') }}\nwhere customer_id is not null",
+              "path": "models/stg_customers.sql"
+            }
+          ]
+        },
+        "stage": "patch"
+      },
+      {
+        "output": {
+          "reason": "The customer_id column is now nullable in the source data, which violates the business rule that it must be non-null. The current SQL query does not exclude rows with NULL customer IDs, which could lead to incorrect results. To fix this issue, the SQL query should be updated to exclude rows with NULL customer IDs. The updated SQL query should be added to the `models/stg_customers.sql` file. The `models/schema.yml` file should be updated to include the new data test for the customer_id column. The `dbt build` command should be rerun to ensure that the changes are applied correctly. The `executions` and `input_samples` sections should be updated to reflect the changes made to the SQL query and the schema. The `resources` and `sources` sections should be updated to reflect the changes made to the SQL query and the schema. The `project_files` section should be updated to reflect the changes made to the SQL query and the schema. The `verdict` should be set to ",
+          "suggested_focus": "sql_query",
+          "verdict": "retry"
+        },
+        "stage": "semantic_review"
+      },
+      {
+        "applied": [
+          {
+            "applied": false,
+            "path": "models/stg_customers.sql",
+            "reason": "no change"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m10:28:02  Running with dbt=1.11.14\n\u001b[0m10:28:02  Registered adapter: duckdb=1.11.0\n\u001b[0m10:28:02  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m10:28:02  \n\u001b[0m10:28:02  Concurrency: 1 threads (target='dev')\n\u001b[0m10:28:02  \n\u001b[0m10:28:02  1 of 3 START sql table model analytics.stg_customers ........................... [RUN]\n\u001b[0m10:28:03  1 of 3 OK created sql table model analytics.stg_customers ...................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m10:28:03  2 of 3 START test not_null_stg_customers_customer_id ........................... [RUN]\n\u001b[0m10:28:03  2 of 3 PASS not_null_stg_customers_customer_id ................................. [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m10:28:03  3 of 3 START test unique_stg_customers_customer_id ............................. [RUN]\n\u001b[0m10:28:03  3 of 3 PASS unique_stg_customers_customer_id ................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m10:28:03  \n\u001b[0m10:28:03  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.34 seconds (0.34s).\n\u001b[0m10:28:03  \n\u001b[0m10:28:03  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:28:03  \n\u001b[0m10:28:03  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "The defect is in the source handling. The SQL query does not exclude rows with NULL customer IDs, which could lead to incorrect results. To fix this issue, the SQL query should be updated to exclude rows with NULL customer IDs. The updated SQL query should be added to the `models/stg_customers.sql` file. The `models/schema.yml` file should be updated to include the new data test for the customer_id column. The `dbt build` command should be rerun to ensure that the changes are applied correctly. The `executions` and `input_samples` sections should be updated to reflect the changes made to the SQL query and the schema. The `resources` and `sources` sections should be updated to reflect the changes made to the SQL query and the schema. The `project_files` section should be updated to reflect the changes made to the SQL query and the schema. The `verdict` should be set to ",
+          "files": [
+            {
+              "content": "select\n    record_id,\n    customer_id,\n    customer_name\nfrom {{ source('raw', 'raw_customers') }}\nwhere customer_id is not null",
+              "path": "models/stg_customers.sql"
+            }
+          ]
+        },
+        "stage": "semantic_retry"
+      }
+    ]
+  }
+}

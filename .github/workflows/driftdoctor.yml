@@ -1,15 +1,14 @@
 name: driftdoctor-measurement
 
 on:
-  pull_request:
-    paths:
-      - "driftdoctor/**"
-      - "benchmark/**"
-      - "scripts/run_driftdoctor.py"
-      - "scripts/summarize_driftdoctor.py"
-      - "requirements.txt"
-      - ".github/workflows/driftdoctor.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: driftdoctor-measurement-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   measure:
