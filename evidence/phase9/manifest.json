@@ -15,7 +15,8 @@
     "mean_elapsed_seconds": 6.640333333333333,
     "artifact_id": 9716719953,
     "artifact_digest": "sha256:e41106ab0169566e8492bd0d125956f8cc9d59323aa8071c61ddcc2946753d78",
-    "checked_in_summary_sha256": "cb0ac924f2f09ab49327a6399ce6ae2d28df09aa8d96d9a08ab8230306847040"
+    "artifact_summary_sha256": "cb0ac924f2f09ab49327a6399ce6ae2d28df09aa8d96d9a08ab8230306847040",
+    "checked_in_summary_sha256": "f21f40ba8dd0fc569c464c819e4fd46a7eda1ccb4f68d29c6d3ba30326ffae1f"
   },
   "representative_agent_trajectory": {
     "case": "held-out-ambiguous-ref",
@@ -32,7 +33,8 @@
     "elapsed_seconds": 19.89,
     "artifact_id": 9716761142,
     "artifact_digest": "sha256:77a7807842b16193afa23385bbc216794ec382d78e8b2c487d82f53791fc5c4a",
-    "checked_in_record_sha256": "a94217dcb8113c4ce638eb5f49c4d7d3695a443d256888ac5e9853c37d1be797"
+    "artifact_record_sha256": "a94217dcb8113c4ce638eb5f49c4d7d3695a443d256888ac5e9853c37d1be797",
+    "checked_in_record_sha256": "84fc9e0f92637de4467775bedace57a3ba7985599539ad76afbc3a4acb962f5d"
   },
   "claim_boundary": "The held-out agent trajectory demonstrates the bounded agent role but is not folded into the frozen 12-case primary VRR."
 }
