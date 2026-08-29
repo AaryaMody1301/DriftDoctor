@@ -2,7 +2,7 @@
 
 DriftDoctor is an evidence-first agentic workflow for diagnosing and repairing dbt pipeline regressions caused by schema, contract, and semantic drift.
 
-> **Hackathon status:** Phases 1-4 are complete and preserved, Phase 5 controlled experiments are running on context v0.2, and Phase 6 submission hardening has started. The benchmark remains 12 frozen cases with an external deterministic oracle. Final Phase 5 winner/VRR claims remain gated on every comparison arm completing without infrastructure errors.
+> **Hackathon status:** Phases 1-4 are complete and preserved, Phase 5 controlled experiments are running on context v0.2, and Phase 6 submission hardening is active. The benchmark remains 12 frozen cases with an external deterministic oracle. Final Phase 5 winner/VRR claims remain gated on every comparison arm completing without infrastructure errors.
 
 ## The user and bottleneck
 
@@ -17,12 +17,11 @@ incident
   -> collect evidence
   -> form a root-cause hypothesis
   -> propose the smallest repair
-  -> add/identify a regression check
-  -> verify in an isolated local project
+  -> verify executable behavior
   -> produce an approval-ready evidence report
 ```
 
-The workflow never merges or deploys a repair automatically. Benchmark actions stay inside synthetic local dbt projects backed by DuckDB.
+The workflow never merges or deploys a repair automatically. Benchmark actions stay inside synthetic local dbt projects backed by DuckDB, and the judge-facing CLI operates on a disposable copy of a local project.
 
 ## What success means
 
@@ -52,7 +51,18 @@ python scripts/validate_benchmark.py
 python scripts/smoke_benchmark.py
 ```
 
-Materialize one broken incident:
+Run DriftDoctor against a disposable copy of a local dbt project:
+
+```bash
+python scripts/run_incident.py \
+  --project /path/to/local/dbt-project \
+  --incident "Describe the broken pipeline behavior" \
+  --business-context /path/to/business-rules.md
+```
+
+The command writes an approval-ready `driftdoctor-report.json` containing the structured trajectory, build evidence, diff, and explicit human-approval requirement. It never modifies the source project and performs no deployment.
+
+Materialize one benchmark incident:
 
 ```bash
 python scripts/materialize_case.py DD-005 --output .work/DD-005 --force
@@ -74,7 +84,7 @@ The benchmark contains 12 frozen incidents spanning schema drift, type drift, de
 
 See:
 
-- [`REPRODUCE.md`](REPRODUCE.md) - clean-environment reproduction and evidence guide
+- [`REPRODUCE.md`](REPRODUCE.md) - clean-environment reproduction, safe CLI, and evidence guide
 - [`docs/PROBLEM.md`](docs/PROBLEM.md) - problem, users, scope, safety boundaries
 - [`docs/EVALUATION.md`](docs/EVALUATION.md) - frozen evaluation protocol and fairness rules
 - [`docs/PHASE_2.md`](docs/PHASE_2.md) - executable benchmark architecture and exit criteria
@@ -93,7 +103,7 @@ See:
 3. **Baseline measurement** - run the frozen baseline and preserve trajectories/results. **Complete.**
 4. **DriftDoctor workflow** - implement and measure the first evidence/repair loop; preserve the negative result. **Complete.**
 5. **Controlled experiments** - compare context baseline, no-review, and semantic-review workflows under context v0.2. **Measurement in progress.**
-6. **Submission hardening** - clean-environment reproduction, evidence packaging, safety documentation, report, and demo. **In progress.**
+6. **Submission hardening** - clean-environment reproduction, judge CLI, evidence packaging, safety documentation, report, and demo. **In progress.**
 
 ## Current non-goals
 
@@ -102,6 +112,12 @@ See:
 - broad data-observability monitoring
 - arbitrary repository repair outside the benchmarked dbt workflow
 - claiming an incident is solved based only on model output
+
+## Failure mode and current hot take
+
+The main observed failure mode is **repair quality after diagnosis**: structured evidence and protocol guardrails can make an agent more disciplined without making the generated patch correct. Phase 4 demonstrated that verifier retries alone did not improve VRR.
+
+**Hot take:** a green pipeline is not a verified pipeline. For repair agents, executable verification and explicit business contracts matter more than adding agent count; the final Phase 5 ablation will determine whether the semantic reviewer earns its complexity.
 
 ## Research basis
 
