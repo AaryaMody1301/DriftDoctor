@@ -65,7 +65,28 @@ After editing the workspace, grade it externally:
 python scripts/evaluate_case.py DD-005 --workdir .work/DD-005
 ```
 
-## 5. Reproduce the original baseline
+## 5. Run DriftDoctor safely on a local project
+
+The judge-facing CLI operates on a disposable copy and never edits the source project. The source project must include `dbt_project.yml` and a local `profiles.yml`; this intentionally avoids hidden cloud credentials.
+
+```bash
+python scripts/run_incident.py \
+  --project /path/to/local/dbt-project \
+  --incident "The upstream customer name column changed and the mart no longer builds" \
+  --business-context /path/to/business-rules.md
+```
+
+The command prints a sandbox path under `.work/` and writes:
+
+```text
+driftdoctor-report.json
+```
+
+The report contains the incident, model/runtime configuration, structured workflow trajectory, final dbt build result, git diff, infrastructure status, and explicit human-approval requirement. It performs no deployment and leaves the source project unchanged.
+
+Until the Phase 5 semantic-review ablation is frozen, the CLI defaults to `--no-semantic-review`. The selected submission workflow will be documented here once the complete matrix finishes.
+
+## 6. Reproduce the original baseline
 
 Start Ollama first, then run:
 
@@ -77,7 +98,7 @@ python scripts/run_baseline.py \
 
 The original v0.1 baseline is historical evidence and used benchmark context v0.1. Do not compare it directly with a context-v0.2 Phase 5 system as if the visible inputs were identical.
 
-## 6. Reproduce the controlled Phase 5 comparison
+## 7. Reproduce the controlled Phase 5 comparison
 
 Each command below materializes the same 12 fixtures, adds the same public context v0.2, uses the same hidden external oracle, and uses the same local model.
 
@@ -118,7 +139,7 @@ The numeric VRR shown above is only a JSON-shape example. Use the value actually
 
 If `complete` is false, the run is not eligible for a performance claim. Transport failures are recorded separately rather than silently counted as model failures.
 
-## 7. Evidence locations
+## 8. Evidence locations
 
 Phase 5 results are written to:
 
@@ -132,15 +153,17 @@ benchmark/results/phase5/<system>/
 
 Each scored case record includes the system/model, incident, VRR pass/fail outcome, root-cause prediction, elapsed time, model-call count, external oracle result, observable trajectory, and final git diff.
 
-## 8. Safety boundary
+GitHub Actions artifacts are useful transport for CI evidence, but they are retention-limited. The final submission therefore preserves the selected raw result records in the repository as well as recording the workflow artifact digest.
 
-The benchmark operates only on synthetic local projects. DriftDoctor does not merge, deploy, or modify production systems. A real-world integration should generate an approval-ready patch and require a qualified human to approve consequential changes before deployment.
+## 9. Safety boundary
 
-## 9. Approximate runtime and cost
+The benchmark operates only on synthetic local projects. The judge-facing CLI works on a disposable local copy. DriftDoctor does not merge, deploy, or modify production systems. A real-world integration should generate an approval-ready patch and require a qualified human to approve consequential changes before deployment.
+
+## 10. Approximate runtime and cost
 
 Model API cost is $0 because the comparison model runs locally through Ollama. CPU runtime varies substantially by host. GitHub-hosted CPU runs can take many minutes per case; the experiment workflow uses a larger job timeout to distinguish slow local inference from task failure.
 
-## 10. Exact versions
+## 11. Exact versions
 
 The repository pins:
 
@@ -150,4 +173,4 @@ dbt-duckdb==1.11.0
 duckdb==1.5.5
 ```
 
-CI uses Python 3.13. The final submission should cite the exact commit SHA used for the headline evaluation.
+CI uses Python 3.13. The final submission will record the exact commit SHA used for the headline evaluation.
