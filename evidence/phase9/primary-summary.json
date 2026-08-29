@@ -1,0 +1,15 @@
+{
+  "agent_cases": 0,
+  "complete": true,
+  "context_version": "0.2",
+  "escalation_cases": 0,
+  "expected_cases": 12,
+  "failures": [],
+  "mean_elapsed_seconds": 6.640333333333333,
+  "model_calls": 0,
+  "root_cause_correct": 12,
+  "scored_cases": 12,
+  "solved": 12,
+  "system": "driftdoctor-v0.5-selective-agency",
+  "verified_resolution_rate": 1.0
+}
