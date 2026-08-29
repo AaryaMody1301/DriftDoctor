@@ -1,14 +1,6 @@
 name: phase8-hybrid-repair-skills
 
 on:
-  pull_request:
-    paths:
-      - "driftdoctor/repair_skills.py"
-      - "driftdoctor/v3.py"
-      - "driftdoctor/v4.py"
-      - "scripts/run_phase8.py"
-      - "tests/test_repair_skills.py"
-      - ".github/workflows/phase8.yml"
   workflow_dispatch:
 
 permissions:
