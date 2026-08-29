@@ -3,7 +3,7 @@ name: benchmark-smoke
 on:
   push:
     branches:
-      - phase-2-executable-benchmark
+      - main
   pull_request:
     paths:
       - "benchmark/**"
