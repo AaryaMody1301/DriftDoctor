@@ -71,8 +71,17 @@ def _chat(
 
     A retry is used only when the local HTTP transport times out/fails before a
     response is received. It does not alter prompts, schemas, temperature, or
-    the logical model-call budget used by the experiment.
+    the logical model-call budget used by the experiment. The HTTP response
+    ceiling can be raised by CI through OLLAMA_RESPONSE_TIMEOUT_SECONDS without
+    changing the logical experiment configuration.
     """
+    configured_timeout = os.environ.get("OLLAMA_RESPONSE_TIMEOUT_SECONDS")
+    if configured_timeout:
+        try:
+            timeout = max(1, int(configured_timeout))
+        except ValueError as exc:
+            raise ValueError("OLLAMA_RESPONSE_TIMEOUT_SECONDS must be an integer") from exc
+
     payload = json.dumps({
         "model": model,
         "messages": messages,
@@ -171,7 +180,6 @@ def run_v2(root: Path, incident: str, model: str, max_model_calls: int = 14, sem
     build = _run_build(root)
     trajectory.append({"stage": "patch", "output": patch, "applied": applied, "build": build})
 
-    # Compilation/runtime retry: deterministic build feedback creates a new signal.
     if build["returncode"] != 0 and calls < max_model_calls:
         latest = collect_evidence(root)
         repair = _chat(model, [
