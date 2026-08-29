@@ -15,7 +15,7 @@ from baseline.agent import run_baseline  # noqa: E402
 from benchmark.fixture_factory import materialize_case  # noqa: E402
 from benchmark.oracles import evaluate_case  # noqa: E402
 from benchmark.public_context import write_public_context  # noqa: E402
-from driftdoctor.v2 import run_v2  # noqa: E402
+from driftdoctor.v2 import InferenceTransportError, run_v2  # noqa: E402
 
 
 def load_cases() -> list[dict]:
@@ -68,8 +68,11 @@ def main() -> int:
             raise SystemExit(f"unknown case: {args.case}")
 
     results_dir = ROOT / "benchmark" / "results" / "phase5" / args.system
+    if results_dir.exists():
+        shutil.rmtree(results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
-    summary = []
+    summary: list[dict] = []
+    infrastructure_errors: list[dict] = []
 
     for case in cases:
         case_id = case["id"]
@@ -80,7 +83,24 @@ def main() -> int:
         write_public_context(case_id, workdir)
         init_git(workdir)
 
-        trajectory, prediction, elapsed, calls = run_system(args.system, workdir, case, args.model, args.max_calls)
+        try:
+            trajectory, prediction, elapsed, calls = run_system(args.system, workdir, case, args.model, args.max_calls)
+        except InferenceTransportError as exc:
+            error_record = {
+                "case_id": case_id,
+                "system": args.system,
+                "context_version": "0.2",
+                "model": args.model,
+                "status": "infrastructure_error",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "diff": capture_diff(workdir),
+            }
+            (results_dir / f"{case_id}.json").write_text(json.dumps(error_record, indent=2, sort_keys=True))
+            infrastructure_errors.append(error_record)
+            print(json.dumps({"case_id": case_id, "status": "infrastructure_error", "error": str(exc)}, sort_keys=True), flush=True)
+            continue
+
         oracle = evaluate_case(case_id, workdir, timeout_seconds=120)
         record = {
             "case_id": case_id,
@@ -88,6 +108,7 @@ def main() -> int:
             "context_version": "0.2",
             "model": args.model,
             "incident": case["incident"],
+            "status": "scored",
             "passed": oracle.passed,
             "root_cause_prediction": prediction,
             "root_cause_correct": prediction == case["root_cause_class"],
@@ -104,22 +125,34 @@ def main() -> int:
 
     solved = sum(bool(r["passed"]) for r in summary)
     roots = sum(bool(r["root_cause_correct"]) for r in summary)
-    total = len(summary)
+    expected = len(cases)
+    scored = len(summary)
+    complete = scored == expected and not infrastructure_errors
     aggregate = {
         "system": args.system,
         "context_version": "0.2",
         "model": args.model,
-        "cases": total,
+        "expected_cases": expected,
+        "scored_cases": scored,
+        "complete": complete,
+        "infrastructure_errors": [
+            {"case_id": r["case_id"], "error_type": r["error_type"], "error": r["error"]}
+            for r in infrastructure_errors
+        ],
         "solved": solved,
-        "verified_resolution_rate": solved / total if total else 0,
+        "verified_resolution_rate": (solved / scored) if complete and scored else None,
         "root_cause_correct": roots,
-        "root_cause_accuracy": roots / total if total else 0,
-        "mean_elapsed_seconds": sum(r["elapsed_seconds"] for r in summary) / total if total else 0,
-        "mean_model_calls": sum(r["model_calls"] for r in summary) / total if total else 0,
+        "root_cause_accuracy": (roots / scored) if complete and scored else None,
+        "mean_elapsed_seconds": (sum(r["elapsed_seconds"] for r in summary) / scored) if scored else None,
+        "mean_model_calls": (sum(r["model_calls"] for r in summary) / scored) if scored else None,
         "case_results": summary,
     }
     (results_dir / "summary.json").write_text(json.dumps(aggregate, indent=2, sort_keys=True))
     print(json.dumps(aggregate, indent=2, sort_keys=True))
+
+    if not complete:
+        print("Phase 5 run is incomplete because of infrastructure errors; no VRR is publishable.", file=sys.stderr)
+        return 2
     return 0
 
 
