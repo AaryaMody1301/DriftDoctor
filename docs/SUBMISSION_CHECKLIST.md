@@ -1,6 +1,6 @@
 # Submission readiness checklist
 
-This checklist maps DriftDoctor's final package to the hackathon deliverables and scoring criteria. The measured software/evidence package is frozen; only manual portal/video steps remain.
+This checklist maps DriftDoctor's final package to the hackathon deliverables and scoring criteria. The measured software/evidence package is frozen; only the human-recorded video and portal submission remain outside the repository.
 
 ## Required deliverables
 
@@ -11,13 +11,16 @@ This checklist maps DriftDoctor's final package to the hackathon deliverables an
 - [x] Clean-environment reproduction guide (`REPRODUCE.md`).
 - [x] Case-level observable trajectories, tool/model outputs, diffs, and oracle outcomes preserved in `evidence/phase5/` for complete comparison arms.
 - [x] Judge-facing safe CLI operates on a disposable project copy and emits an approval-ready JSON report.
+- [x] CLI `--force` cannot delete arbitrary directories; only a DriftDoctor-marked sandbox can be replaced, with regression tests in `tests/test_run_incident_safety.py`.
 - [x] README includes final matched-context numbers, concise failure mode, and evidence-backed hot take.
 - [x] Freeze the publishable Phase 5 results: context baseline 0/12; final no-review workflow 1/12.
 - [x] Select final workflow using the predeclared evidence rule: **`driftdoctor-no-review`**.
 - [x] Update Improvement Changelog with final numbers and removal decision for semantic review.
 - [x] Produce final comparison table using only complete, matched-context runs.
 - [x] Preserve raw Phase 5 result records in the repository and record CI artifact IDs/digests in `evidence/phase5/manifest.json`.
-- [ ] Record the final merged `main` commit SHA in the hackathon submission notes after PR #10 is merged.
+- [x] Pin GitHub Actions dependencies to immutable full commit SHAs and enforce that rule in submission preflight.
+- [x] Pin the post-evaluation rerun Ollama runtime to 0.33.2 and record runtime/model identity on future manual reruns.
+- [ ] At portal submission time, copy the exact latest passing `main` commit SHA into the submission form.
 - [ ] Record/upload a <=5 minute solution video.
 - [ ] Submit the final repository/video on the hackathon portal.
 
@@ -39,6 +42,7 @@ This checklist maps DriftDoctor's final package to the hackathon deliverables an
 - [x] Semantic-review ablation was measured instead of assuming more agent stages help.
 - [x] Hidden oracle is not exposed to the repair workflow.
 - [x] Final system freezes only components supported by complete publishable evidence.
+- [x] Judge-facing destructive operations have explicit ownership/path guardrails and tests.
 
 ### End-to-End Quality — 20
 
@@ -61,12 +65,14 @@ This checklist maps DriftDoctor's final package to the hackathon deliverables an
 ### Reproducibility — 15
 
 - [x] Pinned Python/dbt/DuckDB versions.
+- [x] Post-evaluation rerun workflows pin Ollama and print runtime/model identity.
+- [x] GitHub Actions dependencies are immutable full-SHA references.
 - [x] Synthetic local data and DuckDB; no warehouse credentials.
 - [x] Reference repairs prove oracle solvability.
 - [x] `REPRODUCE.md` contains exact install/evaluation commands and the safe local CLI.
 - [x] Raw selected evidence is checked in rather than relying only on retention-limited CI artifacts.
 - [x] Source workflow run IDs, evaluation commit SHAs, artifact IDs, and SHA-256 artifact digests are recorded.
-- [ ] Record the final merged `main` commit SHA in submission notes.
+- [ ] Copy the final post-hardening `main` SHA into the portal submission notes.
 
 ### Hot Take / Insights — 5
 

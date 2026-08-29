@@ -7,12 +7,12 @@ This guide is written for a judge starting from a clean machine. DriftDoctor's b
 ## 1. Requirements
 
 - Linux or macOS
-- Python 3.13 (CI uses 3.13.15)
+- Python 3.13; submission CI uses **3.13.15**
 - Git
-- Ollama
+- Ollama; post-evaluation rerun workflows pin **0.33.2**
 - enough RAM/disk to run `qwen2.5-coder:1.5b` locally
 
-The pinned Python dependencies are in `requirements.txt`.
+The Python runtime dependencies are pinned in `requirements.txt`.
 
 ## 2. Clone and install
 
@@ -25,10 +25,18 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Install Ollama using its official installation instructions, start the local service, then pull the comparison model:
+For a controlled rerun, install the same Ollama version pinned by the manual measurement workflows:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.33.2 sh
+ollama --version
+```
+
+Start Ollama, then pull and record the comparison model identity:
 
 ```bash
 ollama pull qwen2.5-coder:1.5b
+ollama list
 ```
 
 Confirm the local API is reachable:
@@ -36,6 +44,10 @@ Confirm the local API is reachable:
 ```bash
 curl -fsS http://127.0.0.1:11434/api/tags
 ```
+
+### Historical runtime note
+
+The publishable Phase 5 measurement was run in GitHub Actions run `33236007203` from evaluation head `a135e543b6feb15a6003a73aabfdc54b5f37d256`. That historical job used the official Ollama installer without an explicit version and did **not** print `ollama --version`, so this repository does not pretend the exact historical Ollama CLI version was recorded. The stable `0.33.2` release was available at evaluation time; post-evaluation manual workflows pin `0.33.2` and print both the Ollama version and model listing so future runs cannot silently drift. This hardening does not change the frozen result records.
 
 ## 3. Validate the benchmark contract
 
@@ -67,7 +79,7 @@ python scripts/evaluate_case.py DD-005 --workdir .work/DD-005
 
 ## 5. Run DriftDoctor safely on a local project
 
-The judge-facing CLI operates on a disposable copy and never edits the source project. The source project must include `dbt_project.yml` and a local `profiles.yml`; this intentionally avoids hidden cloud credentials.
+The judge-facing CLI operates on a disposable copy and never edits the source project. The source project must include `dbt_project.yml` and a project-local `profiles.yml`. Do not put production credentials in the project used for the demo.
 
 ```bash
 python scripts/run_incident.py \
@@ -78,7 +90,15 @@ python scripts/run_incident.py \
 
 The command prints a sandbox path under `.work/` and writes `driftdoctor-report.json`. The report contains the incident, model/runtime configuration, observable structured trajectory, final dbt build result, git diff, infrastructure status, and explicit human-approval requirement. It performs no deployment and leaves the source project unchanged.
 
-The CLI defaults to `--no-semantic-review` because that is the final measured workflow. The `--semantic-review` flag remains available only for reproducing the removed experiment.
+Safety behavior:
+
+- a custom sandbox may not contain the source project or live inside it;
+- `--force` only replaces a directory marked as a sandbox previously created by DriftDoctor; it refuses to delete an arbitrary existing directory;
+- exit code `0` means `dbt build` passed but **still requires human approval and semantic checks**;
+- exit code `1` means the attempted repair did not reach a successful build;
+- exit code `2` means local model transport failed.
+
+The CLI defaults to no semantic reviewer because `driftdoctor-no-review` is the selected measured workflow. `--semantic-review` exists only to reproduce the removed experiment.
 
 ## 6. Reproduce the original historical baseline
 
@@ -114,14 +134,14 @@ python scripts/run_phase5.py \
   --max-calls 14
 ```
 
-Expected checked-in reference summaries are under:
+Expected checked-in reference summaries:
 
 ```text
 evidence/phase5/context-baseline/summary.json
 evidence/phase5/driftdoctor-no-review/summary.json
 ```
 
-The reference results are:
+Reference results:
 
 ```text
 context-baseline          0/12 VRR (0.00%)
@@ -132,8 +152,6 @@ A valid result must have `complete=true`, `expected_cases=12`, `scored_cases=12`
 
 ## 8. Reproduce the removed reviewer experiment
 
-The optional experiment can still be invoked with:
-
 ```bash
 python scripts/run_phase5.py \
   --system driftdoctor-review \
@@ -141,11 +159,9 @@ python scripts/run_phase5.py \
   --max-calls 14
 ```
 
-It is **not** the final workflow. The final recovery attempt is preserved under `evidence/phase5/driftdoctor-review-incomplete/`. It produced 7 scored cases and sets `verified_resolution_rate=null` because transport timeouts/missing evidence prevented a valid 12/12 aggregate. Do not treat its one observed pass as a VRR.
+This is **not** the final workflow. The final recovery attempt is preserved under `evidence/phase5/driftdoctor-review-incomplete/`. It produced 7 scored cases and sets `verified_resolution_rate=null` because transport timeouts/missing evidence prevented a valid 12/12 aggregate. Do not turn its one observed pass into a VRR.
 
 ## 9. Evidence locations
-
-Checked-in evidence:
 
 ```text
 evidence/phase5/
@@ -164,7 +180,7 @@ evidence/phase5/
 
 Each complete case record includes the system/model, incident, pass/fail outcome, root-cause prediction, elapsed time, model-call count, external oracle result, observable trajectory, and final git diff.
 
-`evidence/phase5/manifest.json` records the source workflow run IDs, source commit SHAs, artifact IDs, and SHA-256 digests. This protects the submission from depending only on retention-limited Actions artifacts.
+`evidence/phase5/manifest.json` records source workflow run IDs, evaluation commit SHAs, artifact IDs, and SHA-256 artifact digests. The selected result therefore does not depend on expiring Actions artifacts.
 
 ## 10. Safety boundary
 
@@ -179,14 +195,15 @@ Model API cost is **$0** because the comparison model runs locally through Ollam
 
 The final workflow trades additional local inference time for structured diagnosis/patching and deterministic build feedback. The repository does not claim that the current runtime is production-optimal.
 
-## 12. Exact versions
-
-The repository pins:
+## 12. Exact pinned software
 
 ```text
+Python submission CI: 3.13.15
 dbt-core==1.11.14
 dbt-duckdb==1.11.0
 duckdb==1.5.5
+post-evaluation rerun Ollama: 0.33.2
+model tag: qwen2.5-coder:1.5b
 ```
 
-CI uses Python 3.13.15 for submission verification. The exact evaluation commit/artifact provenance is recorded in `evidence/phase5/manifest.json`; the final merged submission commit is the `main` commit that contains this evidence directory and passes `.github/workflows/submission.yml`.
+GitHub Actions used by the repository are pinned to full immutable commit SHAs, with the human-readable major version left only as an inline comment. The exact measured evaluation/artifact provenance is in `evidence/phase5/manifest.json`.

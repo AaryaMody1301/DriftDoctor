@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,7 @@ REQUIRED_FILES = [
     "scripts/run_phase5.py",
     "scripts/aggregate_phase5.py",
     "scripts/run_incident.py",
+    "tests/test_run_incident_safety.py",
     "evidence/phase5/README.md",
     "evidence/phase5/manifest.json",
     "evidence/phase5/context-baseline/summary.json",
@@ -35,15 +37,19 @@ REQUIRED_FILES = [
 
 PUBLISHABLE_SYSTEMS = ["context-baseline", "driftdoctor-no-review"]
 SELECTED_SYSTEM = "driftdoctor-no-review"
+EXPENSIVE_MANUAL_WORKFLOWS = [
+    ".github/workflows/baseline.yml",
+    ".github/workflows/driftdoctor.yml",
+    ".github/workflows/phase5.yml",
+    ".github/workflows/phase5-review-recovery.yml",
+]
+ACTION_REF_RE = re.compile(r"uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)")
+FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def fail(message: str, failures: list[str]) -> None:
     failures.append(message)
     print(f"FAIL: {message}")
-
-
-def load_json(relative: str) -> dict:
-    return json.loads((ROOT / relative).read_text())
 
 
 def main() -> int:
@@ -137,6 +143,35 @@ def main() -> int:
     else:
         fail("evidence manifest is missing", failures)
 
+    print("\nWorkflow supply-chain audit")
+    workflows_dir = ROOT / ".github" / "workflows"
+    for workflow in sorted(workflows_dir.glob("*.yml")):
+        text = workflow.read_text(errors="replace")
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            match = ACTION_REF_RE.search(line)
+            if not match:
+                continue
+            action, ref = match.groups()
+            if not FULL_SHA_RE.fullmatch(ref):
+                fail(
+                    f"{workflow.relative_to(ROOT)}:{line_number} must pin {action} to a full 40-character commit SHA",
+                    failures,
+                )
+
+    for relative in EXPENSIVE_MANUAL_WORKFLOWS:
+        path = ROOT / relative
+        if not path.is_file():
+            continue
+        text = path.read_text(errors="replace")
+        if "workflow_dispatch:" not in text:
+            fail(f"{relative} must remain manually dispatched", failures)
+        if re.search(r"(?m)^\s{2}(push|pull_request):", text):
+            fail(f"{relative} must not run automatically", failures)
+
+    submission_text = (ROOT / ".github/workflows/submission.yml").read_text(errors="replace")
+    if not re.search(r"(?m)^\s{2}pull_request:", submission_text):
+        fail("submission workflow must validate pull requests before merge", failures)
+
     print("\nClaim hygiene audit")
     readme_path = ROOT / "README.md"
     readme = readme_path.read_text(errors="replace") if readme_path.exists() else ""
@@ -158,7 +193,7 @@ def main() -> int:
     if failures:
         print(f"\nSubmission preflight failed with {len(failures)} issue(s).")
         return 1
-    print("\nSubmission preflight passed: final evidence, provenance, and claims are internally consistent.")
+    print("\nSubmission preflight passed: evidence, claims, workflow pins, and run gates are consistent.")
     return 0
 
 
