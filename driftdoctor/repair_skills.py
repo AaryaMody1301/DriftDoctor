@@ -69,6 +69,23 @@ def _declared_contract_fields(context: str) -> list[str]:
     return fields
 
 
+def _explicitly_derived_fields(context: str) -> set[str]:
+    """Return contract fields whose value is explicitly defined by the business context.
+
+    An explicit derivation must outrank fuzzy source-header matching. Otherwise a field
+    such as `owner_display` can be incorrectly aliased from `owner_id` merely because
+    both identifiers share the `owner` token.
+    """
+    derived: set[str] = set()
+    for match in re.finditer(
+        rf"`({IDENTIFIER})`\s+is\s+(?:the\s+)?(?:trimmed\s+concatenation|derived|computed|calculated)\b",
+        context,
+        flags=re.IGNORECASE,
+    ):
+        derived.add(match.group(1).lower())
+    return derived
+
+
 def _semantic_candidates(target: str, headers: set[str]) -> list[str]:
     """Rank source headers by identifier shape without knowing domain-specific names."""
     target_parts = [part for part in target.lower().split("_") if part]
@@ -90,8 +107,9 @@ def _semantic_candidates(target: str, headers: set[str]) -> list[str]:
 
 def _source_alias(files: dict[str, str], headers: set[str], context: str, skills: list[str]) -> None:
     lower_headers = {h.lower() for h in headers}
+    derived_fields = _explicitly_derived_fields(context)
     for target in _declared_contract_fields(context):
-        if target.lower() in lower_headers:
+        if target.lower() in lower_headers or target.lower() in derived_fields:
             continue
         candidates = _semantic_candidates(target, headers)
         if len(candidates) != 1:
@@ -282,7 +300,9 @@ def _macro_interface(files: dict[str, str], context: str, skills: list[str]) -> 
     if len(macro_names) != 1:
         return
     macro_name = macro_names[0]
-    call_re = re.compile(rf"(\{{\{{\s*{re.escape(macro_name)}\([^}}]*?)(?:{IDENTIFIER})\s*=\s*{re.escape(value)}([^}}]*\}}\}})")
+    call_re = re.compile(
+        rf"(\{{\{{\s*{re.escape(macro_name)}\([^}}]*?)(?:{IDENTIFIER})\s*=\s*{re.escape(value)}([^}}]*\}}\}})"
+    )
     for path, text in list(files.items()):
         if not path.endswith(".sql") or path.startswith("macros/"):
             continue
