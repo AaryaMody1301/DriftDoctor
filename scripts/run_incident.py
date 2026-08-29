@@ -9,6 +9,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -58,6 +60,32 @@ def _validate_sandbox_target(source: Path, sandbox: Path) -> None:
         )
 
 
+def _validate_local_duckdb_profile(source: Path) -> None:
+    """Refuse judge-CLI execution against a non-local warehouse target.
+
+    The hackathon product is intentionally scoped to disposable DuckDB projects. This
+    guard prevents a copied project from silently targeting Snowflake/BigQuery/etc.
+    """
+    try:
+        project = yaml.safe_load((source / "dbt_project.yml").read_text(encoding="utf-8")) or {}
+        profiles = yaml.safe_load((source / "profiles.yml").read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        raise SystemExit(f"could not parse project-local dbt YAML safely: {exc}") from exc
+
+    profile_name = project.get("profile")
+    if not isinstance(profile_name, str) or profile_name not in profiles:
+        raise SystemExit("dbt_project.yml must name a profile present in the project-local profiles.yml")
+    profile = profiles.get(profile_name) or {}
+    target_name = profile.get("target")
+    outputs = profile.get("outputs") or {}
+    target = outputs.get(target_name) if isinstance(outputs, dict) else None
+    adapter = target.get("type") if isinstance(target, dict) else None
+    if str(adapter).strip().lower() != "duckdb":
+        raise SystemExit(
+            "refusing non-DuckDB target: the judge CLI only runs disposable local DuckDB profiles"
+        )
+
+
 def _prepare_sandbox(source: Path, sandbox: Path, force: bool) -> None:
     _validate_sandbox_target(source, sandbox)
     if sandbox.exists():
@@ -96,8 +124,17 @@ def _init_snapshot(root: Path) -> None:
 
 
 def _diff(root: Path) -> str:
+    """Return a reviewable source/config diff without generated DuckDB state."""
     proc = subprocess.run(
-        ["git", "diff", "--no-ext-diff"],
+        [
+            "git",
+            "diff",
+            "--no-ext-diff",
+            "--",
+            ".",
+            ":(glob,exclude)**/*.duckdb",
+            ":(exclude)driftdoctor-report.json",
+        ],
         cwd=root,
         text=True,
         capture_output=True,
@@ -126,7 +163,7 @@ def main() -> int:
     parser.add_argument(
         "--no-fallback",
         action="store_true",
-        help="Use only deterministic contract repair skills and never invoke the local coding-model fallback.",
+        help="Use deterministic contract repair skills only; never invoke the bounded ambiguity-resolver agent.",
     )
     parser.add_argument(
         "--sandbox",
@@ -148,8 +185,9 @@ def main() -> int:
         raise SystemExit(
             "source project must contain a project-local profiles.yml; do not use production credentials"
         )
-    if not args.no_fallback and args.max_calls < 2:
-        raise SystemExit("--max-calls must be at least 2 when the coding-model fallback is enabled")
+    _validate_local_duckdb_profile(source)
+    if not args.no_fallback and args.max_calls < 1:
+        raise SystemExit("--max-calls must be at least 1 when the ambiguity-resolver agent is enabled")
     if not args.model.strip():
         raise SystemExit("--model must not be empty")
 
@@ -186,35 +224,41 @@ def main() -> int:
 
     build = (result or {}).get("final_build") or {}
     build_returncode = build.get("returncode")
+    escalation_required = bool((result or {}).get("escalation_required"))
+    concerns = list((result or {}).get("remaining_contract_concerns") or [])
     if infrastructure_error:
         execution_status = "infrastructure_error"
+    elif escalation_required or concerns:
+        execution_status = "human_escalation_required"
     elif build_returncode == 0:
-        execution_status = "build_passed_requires_human_approval"
+        execution_status = "locally_verified_requires_human_approval"
     else:
         execution_status = "build_failed"
 
     report = {
-        "report_version": "2.0",
+        "report_version": "3.0",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "execution_status": execution_status,
-        "workflow_mode": "skills_only" if args.no_fallback else "hybrid_skills_with_model_fallback",
+        "workflow_mode": "skills_only" if args.no_fallback else "selective_agency",
         "source_project": str(source),
         "sandbox_project": str(sandbox),
         "source_project_modified": False,
         "deployment_performed": False,
         "human_approval_required": True,
+        "human_escalation_required": escalation_required,
         "incident": incident_text,
         "model": args.model,
-        "model_fallback_enabled": not args.no_fallback,
+        "ambiguity_agent_enabled": not args.no_fallback,
         "max_model_calls": args.max_calls,
         "infrastructure_error": infrastructure_error,
         "workflow": result,
         "diff": _diff(sandbox),
         "interpretation": (
-            "DriftDoctor routes high-confidence visible contract patterns through deterministic repair skills and "
-            "uses the local coding model only as a bounded fallback for unresolved cases. A successful dbt build is "
-            "evidence, not proof of semantic correctness: review the skill/model trajectory, diff, build output, "
-            "documented business rules, and project-specific tests before applying the patch."
+            "DriftDoctor uses deterministic skills when the visible contract determines a safe repair, and a bounded "
+            "agent only when one explicit dependency ambiguity remains. The agent can select only from observed candidates "
+            "or abstain. Unsupported ambiguity escalates to a human rather than triggering open-ended autonomous editing. "
+            "A successful local build is evidence, not proof of production semantic correctness; review the trajectory, diff, "
+            "business rules, project-specific checks, and approval boundary before applying any change."
         ),
     }
     report_path = sandbox / "driftdoctor-report.json"
@@ -228,13 +272,16 @@ def main() -> int:
 
     print(f"dbt build return code: {build_returncode}")
     print(f"repair skills: {', '.join((result or {}).get('skills', [])) or 'none'}")
-    print(f"model fallback used: {bool((result or {}).get('fallback_used'))}")
+    print(f"bounded agent used: {bool((result or {}).get('fallback_used'))}")
     print(f"model calls: {int((result or {}).get('model_calls', 0))}")
     print("No source files were modified and no deployment was performed.")
+    if escalation_required or concerns:
+        print("No bounded verified repair was available; human escalation is required.", file=sys.stderr)
+        return 1
     if build_returncode != 0:
         print("Repair did not reach a successful dbt build; inspect the approval report.", file=sys.stderr)
         return 1
-    print("Build passed, but human approval and project-specific semantic checks are still required.")
+    print("Local checks passed, but human approval and project-specific semantic checks are still required.")
     return 0
 
 
