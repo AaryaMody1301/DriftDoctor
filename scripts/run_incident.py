@@ -12,7 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from driftdoctor.v2 import InferenceTransportError, run_v2  # noqa: E402
+from driftdoctor.v2 import InferenceTransportError  # noqa: E402
+from driftdoctor.v4 import run_v4  # noqa: E402
 
 SANDBOX_MARKER = ".driftdoctor-sandbox"
 
@@ -123,10 +124,9 @@ def main() -> int:
     parser.add_argument("--model", default="qwen2.5-coder:1.5b")
     parser.add_argument("--max-calls", type=int, default=14)
     parser.add_argument(
-        "--semantic-review",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Enable the removed Phase 5 semantic-review experiment. The measured final workflow leaves it off.",
+        "--no-fallback",
+        action="store_true",
+        help="Use only deterministic contract repair skills and never invoke the local coding-model fallback.",
     )
     parser.add_argument(
         "--sandbox",
@@ -148,8 +148,8 @@ def main() -> int:
         raise SystemExit(
             "source project must contain a project-local profiles.yml; do not use production credentials"
         )
-    if args.max_calls < 2:
-        raise SystemExit("--max-calls must be at least 2 (diagnosis + patch)")
+    if not args.no_fallback and args.max_calls < 2:
+        raise SystemExit("--max-calls must be at least 2 when the coding-model fallback is enabled")
     if not args.model.strip():
         raise SystemExit("--model must not be empty")
 
@@ -172,12 +172,12 @@ def main() -> int:
     _init_snapshot(sandbox)
 
     try:
-        result = run_v2(
+        result = run_v4(
             sandbox,
             incident_text,
             args.model,
             max_model_calls=args.max_calls,
-            semantic_review=args.semantic_review,
+            allow_fallback=not args.no_fallback,
         )
         infrastructure_error = None
     except InferenceTransportError as exc:
@@ -194,9 +194,10 @@ def main() -> int:
         execution_status = "build_failed"
 
     report = {
-        "report_version": "1.1",
+        "report_version": "2.0",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "execution_status": execution_status,
+        "workflow_mode": "skills_only" if args.no_fallback else "hybrid_skills_with_model_fallback",
         "source_project": str(source),
         "sandbox_project": str(sandbox),
         "source_project_modified": False,
@@ -204,14 +205,16 @@ def main() -> int:
         "human_approval_required": True,
         "incident": incident_text,
         "model": args.model,
-        "semantic_review": args.semantic_review,
+        "model_fallback_enabled": not args.no_fallback,
         "max_model_calls": args.max_calls,
         "infrastructure_error": infrastructure_error,
         "workflow": result,
         "diff": _diff(sandbox),
         "interpretation": (
-            "A successful dbt build is evidence, not proof of semantic correctness. Review the diagnosis, "
-            "diff, build output, documented business rules, and project-specific tests before applying the patch."
+            "DriftDoctor routes high-confidence visible contract patterns through deterministic repair skills and "
+            "uses the local coding model only as a bounded fallback for unresolved cases. A successful dbt build is "
+            "evidence, not proof of semantic correctness: review the skill/model trajectory, diff, build output, "
+            "documented business rules, and project-specific tests before applying the patch."
         ),
     }
     report_path = sandbox / "driftdoctor-report.json"
@@ -224,6 +227,9 @@ def main() -> int:
         return 2
 
     print(f"dbt build return code: {build_returncode}")
+    print(f"repair skills: {', '.join((result or {}).get('skills', [])) or 'none'}")
+    print(f"model fallback used: {bool((result or {}).get('fallback_used'))}")
+    print(f"model calls: {int((result or {}).get('model_calls', 0))}")
     print("No source files were modified and no deployment was performed.")
     if build_returncode != 0:
         print("Repair did not reach a successful dbt build; inspect the approval report.", file=sys.stderr)
