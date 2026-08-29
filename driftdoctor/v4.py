@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+from driftdoctor.ambiguity import resolve_ambiguous_missing_ref
 from driftdoctor.repair_skills import propose_contract_patch
 from driftdoctor.v2 import _business_context, _run_build
 from driftdoctor.v3 import run_v3, semantic_concerns
@@ -41,33 +42,40 @@ def _apply_existing_only(root: Path, patch: dict) -> list[dict]:
     return applied
 
 
-def _skill_result(
+def _result(
     *,
     model: str,
     started: float,
-    skill_prediction: str,
+    prediction: str,
     skills: list[str],
-    skill_patch: dict,
+    files: list[dict],
     build: dict,
     concerns: list[str],
     trajectory: list[dict],
+    model_calls: int,
+    fallback_used: bool,
+    fallback_mode: str | None = None,
+    diagnosis: dict | None = None,
 ) -> dict:
-    return {
-        "system": "driftdoctor-v0.4-hybrid-skills",
-        "model": model,
-        "model_calls": 0,
-        "elapsed_seconds": round(time.monotonic() - started, 3),
-        "diagnosis": {
-            "root_cause_class": skill_prediction,
+    if diagnosis is None:
+        diagnosis = {
+            "root_cause_class": prediction,
             "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
             "evidence": [f"repair_skill:{name}" for name in skills],
-            "files_to_change": [item["path"] for item in skill_patch.get("files", [])],
-        },
-        "skill_root_cause_class": skill_prediction,
+            "files_to_change": [item["path"] for item in files],
+        }
+    return {
+        "system": "driftdoctor-v0.5-selective-agency",
+        "model": model,
+        "model_calls": model_calls,
+        "elapsed_seconds": round(time.monotonic() - started, 3),
+        "diagnosis": diagnosis,
+        "skill_root_cause_class": prediction,
         "final_build": build,
         "remaining_contract_concerns": concerns,
         "skills": skills,
-        "fallback_used": False,
+        "fallback_used": fallback_used,
+        "fallback_mode": fallback_mode,
         "trajectory": trajectory,
     }
 
@@ -80,22 +88,27 @@ def run_v4(
     *,
     allow_fallback: bool = True,
 ) -> dict:
-    """Run deterministic contract skills first, then optionally use v3 fallback.
+    """Run selective agency: deterministic skills first, bounded agents for ambiguity.
 
-    Specialized skills are preferred when the visible project and business contract
-    determine a high-confidence edit. The local coding model remains available for
-    ambiguous cases or for correcting a skill patch that does not build. Hidden
-    benchmark oracle code is never consulted inside this workflow.
+    High-confidence contract repairs remain deterministic. If the project exposes one
+    bounded dependency ambiguity, a constrained agent may choose only from observed
+    candidate models or abstain. Open-ended v3 repair remains the last fallback.
+    Hidden benchmark oracle/reference-repair code is never consulted inside this workflow.
     """
     root = root.resolve()
     started = time.monotonic()
     context = _business_context(root)
     trajectory: list[dict] = []
 
+    # Record the broken-state executable evidence before proposing a repair. This makes
+    # the final trajectory show the actual before/after verification signal.
+    initial_build = _run_build(root)
+    trajectory.append({"stage": "initial_build", "build": initial_build})
+
     skill_patch = propose_contract_patch(root, context)
     skill_prediction = skill_patch.get("root_cause_class", "unknown")
     skills = list(skill_patch.get("skills") or [])
-    build = _run_build(root)
+    build = initial_build
     concerns: list[str] = []
 
     if skill_patch.get("files"):
@@ -113,15 +126,17 @@ def run_v4(
             }
         )
         if build.get("returncode") == 0 and not concerns:
-            return _skill_result(
+            return _result(
                 model=model,
                 started=started,
-                skill_prediction=skill_prediction,
+                prediction=skill_prediction,
                 skills=skills,
-                skill_patch=skill_patch,
+                files=skill_patch.get("files", []),
                 build=build,
                 concerns=[],
                 trajectory=trajectory,
+                model_calls=0,
+                fallback_used=False,
             )
     else:
         concerns = semantic_concerns(root, context) if build.get("returncode") == 0 else []
@@ -137,17 +152,74 @@ def run_v4(
         )
 
     if not allow_fallback:
-        return _skill_result(
+        return _result(
             model=model,
             started=started,
-            skill_prediction=skill_prediction,
+            prediction=skill_prediction,
             skills=skills,
-            skill_patch=skill_patch,
+            files=skill_patch.get("files", []),
             build=build,
             concerns=concerns,
             trajectory=trajectory,
+            model_calls=0,
+            fallback_used=False,
         )
 
+    # First agentic fallback: resolve a bounded observed ambiguity rather than asking a
+    # coding model to regenerate whole files. The model can only select an existing
+    # candidate dependency or abstain; the executor and verifier remain deterministic.
+    ambiguity = resolve_ambiguous_missing_ref(root, incident, context, model)
+    ambiguity_calls = int(ambiguity.get("model_calls", 0))
+    if ambiguity_calls:
+        trajectory.append(
+            {
+                "stage": "ambiguity_resolver",
+                "ambiguity": ambiguity.get("ambiguity"),
+                "decision": ambiguity.get("decision"),
+                "handled": bool(ambiguity.get("handled")),
+                "reason": ambiguity.get("reason"),
+            }
+        )
+    if ambiguity.get("handled"):
+        ambiguity_patch = ambiguity["patch"]
+        applied = _apply_existing_only(root, ambiguity_patch)
+        build = _run_build(root)
+        concerns = semantic_concerns(root, context) if build.get("returncode") == 0 else []
+        trajectory.append(
+            {
+                "stage": "ambiguity_patch",
+                "output": ambiguity_patch,
+                "applied": applied,
+                "build": build,
+                "remaining_contract_concerns": concerns,
+            }
+        )
+        if build.get("returncode") == 0 and not concerns:
+            decision = ambiguity.get("decision") or {}
+            diagnosis = {
+                "root_cause_class": ambiguity.get("root_cause_class", "model_ref_renamed"),
+                "hypothesis": "A missing dependency had multiple observed candidates; a bounded agent selected the documented current model.",
+                "evidence": list(decision.get("evidence") or [])
+                + [f"agent_selection:{decision.get('selection', 'unknown')}"],
+                "files_to_change": [item["path"] for item in ambiguity_patch.get("files", [])],
+            }
+            return _result(
+                model=model,
+                started=started,
+                prediction=diagnosis["root_cause_class"],
+                skills=skills,
+                files=ambiguity_patch.get("files", []),
+                build=build,
+                concerns=[],
+                trajectory=trajectory,
+                model_calls=ambiguity_calls,
+                fallback_used=True,
+                fallback_mode="bounded_ambiguity_resolver",
+                diagnosis=diagnosis,
+            )
+
+    # Last resort: open-ended contract-guided coding agent. This remains bounded and is
+    # only used after deterministic skills and the narrow ambiguity resolver fail.
     fallback = run_v3(root, incident, model, max_model_calls=max_model_calls)
     fallback_diagnosis = fallback.get("diagnosis") or {}
     if skill_prediction != "unknown":
@@ -156,9 +228,9 @@ def run_v4(
 
     trajectory.extend(fallback.get("trajectory") or [])
     return {
-        "system": "driftdoctor-v0.4-hybrid-skills",
+        "system": "driftdoctor-v0.5-selective-agency",
         "model": model,
-        "model_calls": int(fallback.get("model_calls", 0)),
+        "model_calls": ambiguity_calls + int(fallback.get("model_calls", 0)),
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "diagnosis": fallback_diagnosis,
         "skill_root_cause_class": skill_prediction,
@@ -166,5 +238,6 @@ def run_v4(
         "remaining_contract_concerns": fallback.get("remaining_contract_concerns") or [],
         "skills": skills,
         "fallback_used": True,
+        "fallback_mode": "contract_guided_coding_agent",
         "trajectory": trajectory,
     }
