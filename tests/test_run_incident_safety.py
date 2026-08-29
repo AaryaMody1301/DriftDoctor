@@ -72,6 +72,44 @@ class RunIncidentSafetyTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 run_incident._validate_sandbox_target(source, source / "nested")
 
+    def test_judge_cli_accepts_active_duckdb_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "dbt_project.yml").write_text("name: demo\nprofile: demo_profile\n", encoding="utf-8")
+            (root / "profiles.yml").write_text(
+                "demo_profile:\n  target: dev\n  outputs:\n    dev:\n      type: duckdb\n      path: demo.duckdb\n",
+                encoding="utf-8",
+            )
+            run_incident._validate_local_duckdb_profile(root)
+
+    def test_judge_cli_rejects_non_duckdb_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "dbt_project.yml").write_text("name: demo\nprofile: demo_profile\n", encoding="utf-8")
+            (root / "profiles.yml").write_text(
+                "demo_profile:\n  target: prod\n  outputs:\n    prod:\n      type: snowflake\n      account: example\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(SystemExit):
+                run_incident._validate_local_duckdb_profile(root)
+
+    def test_approval_diff_excludes_generated_duckdb_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "models").mkdir()
+            model = root / "models" / "example.sql"
+            database = root / "state.duckdb"
+            model.write_text("select 1 as value\n", encoding="utf-8")
+            database.write_bytes(b"before")
+            run_incident._init_snapshot(root)
+
+            model.write_text("select 2 as value\n", encoding="utf-8")
+            database.write_bytes(b"after")
+            diff = run_incident._diff(root)
+
+            self.assertIn("models/example.sql", diff)
+            self.assertNotIn("state.duckdb", diff)
+
 
 if __name__ == "__main__":
     unittest.main()
