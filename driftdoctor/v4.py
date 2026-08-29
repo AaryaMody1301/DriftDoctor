@@ -3,9 +3,10 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+from driftdoctor.ambiguity import resolve_ambiguous_missing_ref
+from driftdoctor.contract_checks import semantic_concerns
 from driftdoctor.repair_skills import propose_contract_patch
 from driftdoctor.v2 import _business_context, _run_build
-from driftdoctor.v3 import run_v3, semantic_concerns
 
 
 def _apply_existing_only(root: Path, patch: dict) -> list[dict]:
@@ -22,7 +23,7 @@ def _apply_existing_only(root: Path, patch: dict) -> list[dict]:
         elif not (raw.startswith("models/") or raw.startswith("macros/")):
             reason = "path is outside editable models/macros scope"
         elif not target.is_file():
-            reason = "new files are not allowed by the contract-skill guard"
+            reason = "new files are not allowed by the repair guard"
         elif len(content.strip()) < 12:
             reason = "replacement is implausibly short"
         elif "```" in content or "complete replacement contents" in content.lower():
@@ -41,33 +42,46 @@ def _apply_existing_only(root: Path, patch: dict) -> list[dict]:
     return applied
 
 
-def _skill_result(
+def _result(
     *,
     model: str,
     started: float,
-    skill_prediction: str,
+    prediction: str,
     skills: list[str],
-    skill_patch: dict,
+    files: list[dict],
     build: dict,
     concerns: list[str],
     trajectory: list[dict],
+    model_calls: int,
+    fallback_used: bool,
+    fallback_mode: str | None = None,
+    diagnosis: dict | None = None,
+    escalation_required: bool = False,
 ) -> dict:
-    return {
-        "system": "driftdoctor-v0.4-hybrid-skills",
-        "model": model,
-        "model_calls": 0,
-        "elapsed_seconds": round(time.monotonic() - started, 3),
-        "diagnosis": {
-            "root_cause_class": skill_prediction,
-            "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+    if diagnosis is None:
+        diagnosis = {
+            "root_cause_class": prediction,
+            "hypothesis": (
+                "Visible contract and project structure matched deterministic repair skills."
+                if prediction != "unknown"
+                else "The bounded workflow could not establish a verified repair from visible evidence."
+            ),
             "evidence": [f"repair_skill:{name}" for name in skills],
-            "files_to_change": [item["path"] for item in skill_patch.get("files", [])],
-        },
-        "skill_root_cause_class": skill_prediction,
+            "files_to_change": [item["path"] for item in files],
+        }
+    return {
+        "system": "driftdoctor-v0.5-selective-agency",
+        "model": model,
+        "model_calls": model_calls,
+        "elapsed_seconds": round(time.monotonic() - started, 3),
+        "diagnosis": diagnosis,
+        "skill_root_cause_class": prediction,
         "final_build": build,
         "remaining_contract_concerns": concerns,
         "skills": skills,
-        "fallback_used": False,
+        "fallback_used": fallback_used,
+        "fallback_mode": fallback_mode,
+        "escalation_required": escalation_required,
         "trajectory": trajectory,
     }
 
@@ -80,22 +94,35 @@ def run_v4(
     *,
     allow_fallback: bool = True,
 ) -> dict:
-    """Run deterministic contract skills first, then optionally use v3 fallback.
+    """Run the final selective-agency DriftDoctor workflow.
 
-    Specialized skills are preferred when the visible project and business contract
-    determine a high-confidence edit. The local coding model remains available for
-    ambiguous cases or for correcting a skill patch that does not build. Hidden
-    benchmark oracle code is never consulted inside this workflow.
+    1. Capture the broken-state dbt signal.
+    2. Apply deterministic skills only when the visible contract determines a safe edit.
+    3. If exactly one bounded dependency ambiguity remains, let a constrained agent
+       choose only among observed candidate models or abstain.
+    4. Verify with dbt + visible contract checks.
+    5. Escalate to a human instead of using the historically weak open-ended coding
+       fallback when the bounded workflow cannot verify a repair.
+
+    Hidden benchmark oracle/reference-repair code is never consulted inside this workflow.
+    The bounded agent uses at most one logical model call and is disabled when
+    `max_model_calls` is zero.
     """
+    if max_model_calls < 0:
+        raise ValueError("max_model_calls must be non-negative")
+
     root = root.resolve()
     started = time.monotonic()
     context = _business_context(root)
     trajectory: list[dict] = []
 
+    initial_build = _run_build(root)
+    trajectory.append({"stage": "initial_build", "build": initial_build})
+
     skill_patch = propose_contract_patch(root, context)
     skill_prediction = skill_patch.get("root_cause_class", "unknown")
     skills = list(skill_patch.get("skills") or [])
-    build = _run_build(root)
+    build = initial_build
     concerns: list[str] = []
 
     if skill_patch.get("files"):
@@ -113,15 +140,17 @@ def run_v4(
             }
         )
         if build.get("returncode") == 0 and not concerns:
-            return _skill_result(
+            return _result(
                 model=model,
                 started=started,
-                skill_prediction=skill_prediction,
+                prediction=skill_prediction,
                 skills=skills,
-                skill_patch=skill_patch,
+                files=skill_patch.get("files", []),
                 build=build,
                 concerns=[],
                 trajectory=trajectory,
+                model_calls=0,
+                fallback_used=False,
             )
     else:
         concerns = semantic_concerns(root, context) if build.get("returncode") == 0 else []
@@ -136,35 +165,92 @@ def run_v4(
             }
         )
 
-    if not allow_fallback:
-        return _skill_result(
+    if not allow_fallback or max_model_calls == 0:
+        return _result(
             model=model,
             started=started,
-            skill_prediction=skill_prediction,
+            prediction=skill_prediction,
             skills=skills,
-            skill_patch=skill_patch,
+            files=skill_patch.get("files", []),
             build=build,
             concerns=concerns,
             trajectory=trajectory,
+            model_calls=0,
+            fallback_used=False,
+            escalation_required=build.get("returncode") != 0 or bool(concerns),
         )
 
-    fallback = run_v3(root, incident, model, max_model_calls=max_model_calls)
-    fallback_diagnosis = fallback.get("diagnosis") or {}
-    if skill_prediction != "unknown":
-        fallback_diagnosis = dict(fallback_diagnosis)
-        fallback_diagnosis.setdefault("skill_root_cause_class", skill_prediction)
+    ambiguity = resolve_ambiguous_missing_ref(root, incident, context, model)
+    ambiguity_calls = int(ambiguity.get("model_calls", 0))
+    if ambiguity_calls:
+        trajectory.append(
+            {
+                "stage": "ambiguity_resolver",
+                "ambiguity": ambiguity.get("ambiguity"),
+                "decision": ambiguity.get("decision"),
+                "handled": bool(ambiguity.get("handled")),
+                "reason": ambiguity.get("reason"),
+            }
+        )
 
-    trajectory.extend(fallback.get("trajectory") or [])
-    return {
-        "system": "driftdoctor-v0.4-hybrid-skills",
-        "model": model,
-        "model_calls": int(fallback.get("model_calls", 0)),
-        "elapsed_seconds": round(time.monotonic() - started, 3),
-        "diagnosis": fallback_diagnosis,
-        "skill_root_cause_class": skill_prediction,
-        "final_build": fallback.get("final_build"),
-        "remaining_contract_concerns": fallback.get("remaining_contract_concerns") or [],
-        "skills": skills,
-        "fallback_used": True,
-        "trajectory": trajectory,
-    }
+    if ambiguity.get("handled"):
+        ambiguity_patch = ambiguity["patch"]
+        applied = _apply_existing_only(root, ambiguity_patch)
+        build = _run_build(root)
+        concerns = semantic_concerns(root, context) if build.get("returncode") == 0 else []
+        trajectory.append(
+            {
+                "stage": "ambiguity_patch",
+                "output": ambiguity_patch,
+                "applied": applied,
+                "build": build,
+                "remaining_contract_concerns": concerns,
+            }
+        )
+        decision = ambiguity.get("decision") or {}
+        diagnosis = {
+            "root_cause_class": ambiguity.get("root_cause_class", "model_ref_renamed"),
+            "hypothesis": "A missing dependency had multiple observed candidates; a bounded agent selected from those candidates.",
+            "evidence": list(decision.get("evidence") or [])
+            + [f"agent_selection:{decision.get('selection', 'unknown')}"],
+            "files_to_change": [item["path"] for item in ambiguity_patch.get("files", [])],
+        }
+        if build.get("returncode") == 0 and not concerns:
+            return _result(
+                model=model,
+                started=started,
+                prediction=diagnosis["root_cause_class"],
+                skills=skills,
+                files=ambiguity_patch.get("files", []),
+                build=build,
+                concerns=[],
+                trajectory=trajectory,
+                model_calls=ambiguity_calls,
+                fallback_used=True,
+                fallback_mode="bounded_ambiguity_resolver",
+                diagnosis=diagnosis,
+            )
+
+    trajectory.append(
+        {
+            "stage": "human_escalation",
+            "reason": (
+                ambiguity.get("reason")
+                or "No verified bounded repair was available; open-ended autonomous editing is intentionally disabled."
+            ),
+        }
+    )
+    return _result(
+        model=model,
+        started=started,
+        prediction=skill_prediction,
+        skills=skills,
+        files=skill_patch.get("files", []),
+        build=build,
+        concerns=concerns,
+        trajectory=trajectory,
+        model_calls=ambiguity_calls,
+        fallback_used=ambiguity_calls > 0,
+        fallback_mode="bounded_ambiguity_resolver" if ambiguity_calls else None,
+        escalation_required=True,
+    )

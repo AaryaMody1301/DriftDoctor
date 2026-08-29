@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import subprocess
@@ -7,6 +8,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from driftdoctor.evidence import collect_evidence, compact_evidence
 
@@ -60,6 +62,42 @@ class InferenceTransportError(RuntimeError):
     """Raised when local Ollama inference does not return after bounded retries."""
 
 
+def _validated_ollama_url(value: str) -> str:
+    """Return a loopback-only Ollama chat URL or reject it.
+
+    DriftDoctor sends incident text and excerpts of local project files to Ollama.
+    The final runtime therefore refuses non-loopback endpoints instead of silently
+    exfiltrating project context when OLLAMA_URL is inherited from the environment.
+    """
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("OLLAMA_URL must be a valid loopback HTTP URL") from exc
+
+    if parsed.scheme != "http" or not hostname:
+        raise ValueError("OLLAMA_URL must use http:// on a loopback host")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("OLLAMA_URL must not contain credentials")
+    if parsed.query or parsed.fragment:
+        raise ValueError("OLLAMA_URL must not contain a query string or fragment")
+    if parsed.path.rstrip("/") != "/api/chat":
+        raise ValueError("OLLAMA_URL path must be /api/chat")
+    if port is not None and not 1 <= port <= 65535:
+        raise ValueError("OLLAMA_URL contains an invalid port")
+
+    host_is_loopback = hostname.lower() == "localhost"
+    if not host_is_loopback:
+        try:
+            host_is_loopback = ipaddress.ip_address(hostname).is_loopback
+        except ValueError:
+            host_is_loopback = False
+    if not host_is_loopback:
+        raise ValueError("OLLAMA_URL must resolve explicitly to localhost or a loopback IP address")
+    return value
+
+
 def _chat(
     model: str,
     messages: list[dict],
@@ -89,7 +127,7 @@ def _chat(
         "format": schema,
         "options": {"temperature": 0},
     }).encode()
-    url = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
+    url = _validated_ollama_url(os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat"))
     last_error: Exception | None = None
 
     for attempt in range(transport_retries + 1):

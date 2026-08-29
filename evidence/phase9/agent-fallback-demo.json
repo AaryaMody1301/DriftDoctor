@@ -1,0 +1,187 @@
+{
+  "business_context": "# Business context\n\nThe public mart contract is `order_id`, `amount`.\nThe active current staging dependency is `stg_orders_v2`.\n`stg_orders_archive` is a historical snapshot and must not be used for the live mart.\n",
+  "case": "held-out-ambiguous-ref",
+  "hybrid": {
+    "diagnosis": {
+      "evidence": [
+        "The public mart contract is `order_id`, `amount`.",
+        "The active current staging dependency is `stg_orders_v2`.",
+        "The historical snapshot `stg_orders_archive` is a historical snapshot and must not be used for the live mart.",
+        "The allowed candidates are `stg_orders_archive` and `stg_orders_v2`.",
+        "The selected candidate is `stg_orders_v2` as it is the only one that matches the public mart contract `order_id`, `amount`.",
+        "agent_selection:stg_orders_v2"
+      ],
+      "files_to_change": [
+        "models/mart_orders.sql"
+      ],
+      "hypothesis": "A missing dependency had multiple observed candidates; a bounded agent selected from those candidates.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 19.89,
+    "escalation_required": false,
+    "fallback_mode": "bounded_ambiguity_resolver",
+    "fallback_used": true,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m15:04:44  Running with dbt=1.11.14\n\u001b[0m15:04:44  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:44  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m15:04:45  Found 3 models, 1 seed, 500 macros\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  Concurrency: 1 threads (target='dev')\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  1 of 4 START seed file analytics.raw_orders .................................... [RUN]\n\u001b[0m15:04:45  1 of 4 OK loaded seed file analytics.raw_orders ................................ [\u001b[32mINSERT 2\u001b[0m in 0.05s]\n\u001b[0m15:04:45  2 of 4 START sql table model analytics.stg_orders_archive ...................... [RUN]\n\u001b[0m15:04:45  2 of 4 OK created sql table model analytics.stg_orders_archive ................. [\u001b[32mOK\u001b[0m in 0.10s]\n\u001b[0m15:04:45  3 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m15:04:45  3 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.05s]\n\u001b[0m15:04:45  4 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m15:04:45  4 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  Finished running 1 seed, 3 table models in 0 hours 0 minutes and 0.40 seconds (0.40s).\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 1,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "model_ref_renamed",
+    "skills": [],
+    "system": "driftdoctor-v0.5-selective-agency",
+    "trajectory": [
+      {
+        "build": {
+          "returncode": 2,
+          "stderr": "",
+          "stdout": "\u001b[0m15:04:27  Running with dbt=1.11.14\n\u001b[0m15:04:27  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:27  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m15:04:28  Encountered an error:\nCompilation Error\n  Model 'model.driftdoctor_fallback_demo.mart_orders' (models/mart_orders.sql) depends on a node named 'stg_orders' which was not found\n"
+        },
+        "stage": "initial_build"
+      },
+      {
+        "applied": [],
+        "build": {
+          "returncode": 2,
+          "stderr": "",
+          "stdout": "\u001b[0m15:04:27  Running with dbt=1.11.14\n\u001b[0m15:04:27  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:27  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m15:04:28  Encountered an error:\nCompilation Error\n  Model 'model.driftdoctor_fallback_demo.mart_orders' (models/mart_orders.sql) depends on a node named 'stg_orders' which was not found\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence repair skills derived from visible project structure and documented business contracts.",
+          "files": [],
+          "root_cause_class": "unknown",
+          "skills": []
+        },
+        "remaining_contract_concerns": [],
+        "skills": [],
+        "stage": "contract_skills"
+      },
+      {
+        "ambiguity": {
+          "candidates": [
+            "stg_orders_archive",
+            "stg_orders_v2"
+          ],
+          "content": "select order_id, amount from {{ ref('stg_orders') }}\n",
+          "missing_ref": "stg_orders",
+          "path": "models/mart_orders.sql"
+        },
+        "decision": {
+          "evidence": [
+            "The public mart contract is `order_id`, `amount`.",
+            "The active current staging dependency is `stg_orders_v2`.",
+            "The historical snapshot `stg_orders_archive` is a historical snapshot and must not be used for the live mart.",
+            "The allowed candidates are `stg_orders_archive` and `stg_orders_v2`.",
+            "The selected candidate is `stg_orders_v2` as it is the only one that matches the public mart contract `order_id`, `amount`."
+          ],
+          "reason": "The current dependency `stg_orders` is no longer available, and the historical snapshot `stg_orders_archive` must not be used for the live mart. The allowed candidates are `stg_orders_archive` and `stg_orders_v2`. The selected candidate is `stg_orders_v2` as it is the only one that matches the public mart contract `order_id`, `amount`. ",
+          "selection": "stg_orders_v2"
+        },
+        "handled": true,
+        "reason": null,
+        "stage": "ambiguity_resolver"
+      },
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/mart_orders.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m15:04:44  Running with dbt=1.11.14\n\u001b[0m15:04:44  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:44  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m15:04:45  Found 3 models, 1 seed, 500 macros\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  Concurrency: 1 threads (target='dev')\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  1 of 4 START seed file analytics.raw_orders .................................... [RUN]\n\u001b[0m15:04:45  1 of 4 OK loaded seed file analytics.raw_orders ................................ [\u001b[32mINSERT 2\u001b[0m in 0.05s]\n\u001b[0m15:04:45  2 of 4 START sql table model analytics.stg_orders_archive ...................... [RUN]\n\u001b[0m15:04:45  2 of 4 OK created sql table model analytics.stg_orders_archive ................. [\u001b[32mOK\u001b[0m in 0.10s]\n\u001b[0m15:04:45  3 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m15:04:45  3 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.05s]\n\u001b[0m15:04:45  4 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m15:04:45  4 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  Finished running 1 seed, 3 table models in 0 hours 0 minutes and 0.40 seconds (0.40s).\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m15:04:45  \n\u001b[0m15:04:45  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "Bounded ambiguity resolver selected an observed existing dependency.",
+          "files": [
+            {
+              "content": "select order_id, amount from {{ ref('stg_orders_v2') }}\n",
+              "path": "models/mart_orders.sql"
+            }
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "stage": "ambiguity_patch"
+      }
+    ]
+  },
+  "incident": "mart_orders stopped compiling after a dependency refactor. The project contains both current and historical staging models. Restore the intended dependency without changing the mart output contract.",
+  "oracle": {
+    "checks": {
+      "agent_was_used": true,
+      "bounded_resolver_used": true,
+      "current_dependency_selected": true,
+      "dbt_build_succeeds": true,
+      "historical_dependency_rejected": true,
+      "no_human_escalation": true,
+      "no_remaining_contract_concerns": true
+    },
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m15:04:47  Running with dbt=1.11.14\n\u001b[0m15:04:47  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:47  Found 3 models, 1 seed, 500 macros\n\u001b[0m15:04:47  \n\u001b[0m15:04:47  Concurrency: 1 threads (target='dev')\n\u001b[0m15:04:47  \n\u001b[0m15:04:47  1 of 4 START seed file analytics.raw_orders .................................... [RUN]\n\u001b[0m15:04:47  1 of 4 OK loaded seed file analytics.raw_orders ................................ [\u001b[32mINSERT 2\u001b[0m in 0.25s]\n\u001b[0m15:04:47  2 of 4 START sql table model analytics.stg_orders_archive ...................... [RUN]\n\u001b[0m15:04:47  2 of 4 OK created sql table model analytics.stg_orders_archive ................. [\u001b[32mOK\u001b[0m in 0.06s]\n\u001b[0m15:04:47  3 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m15:04:47  3 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m15:04:47  4 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m15:04:47  4 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m15:04:47  \n\u001b[0m15:04:47  Finished running 1 seed, 3 table models in 0 hours 0 minutes and 0.48 seconds (0.48s).\n\u001b[0m15:04:47  \n\u001b[0m15:04:47  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m15:04:47  \n\u001b[0m15:04:47  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+    },
+    "passed": true
+  },
+  "purpose": "Representative trajectory for the final bounded ambiguity-resolver agent; not part of the frozen 12-case primary VRR.",
+  "skills_only_control": {
+    "build_returncode": 2,
+    "escalation_required": true,
+    "fallback_used": false,
+    "model_calls": 0,
+    "trajectory": {
+      "diagnosis": {
+        "evidence": [],
+        "files_to_change": [],
+        "hypothesis": "The bounded workflow could not establish a verified repair from visible evidence.",
+        "root_cause_class": "unknown"
+      },
+      "elapsed_seconds": 4.316,
+      "escalation_required": true,
+      "fallback_mode": null,
+      "fallback_used": false,
+      "final_build": {
+        "returncode": 2,
+        "stderr": "",
+        "stdout": "\u001b[0m15:04:22  Running with dbt=1.11.14\n\u001b[0m15:04:23  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:23  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m15:04:23  Encountered an error:\nCompilation Error\n  Model 'model.driftdoctor_fallback_demo.mart_orders' (models/mart_orders.sql) depends on a node named 'stg_orders' which was not found\n"
+      },
+      "model": "qwen2.5-coder:1.5b",
+      "model_calls": 0,
+      "remaining_contract_concerns": [],
+      "skill_root_cause_class": "unknown",
+      "skills": [],
+      "system": "driftdoctor-v0.5-selective-agency",
+      "trajectory": [
+        {
+          "build": {
+            "returncode": 2,
+            "stderr": "",
+            "stdout": "\u001b[0m15:04:22  Running with dbt=1.11.14\n\u001b[0m15:04:23  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:23  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m15:04:23  Encountered an error:\nCompilation Error\n  Model 'model.driftdoctor_fallback_demo.mart_orders' (models/mart_orders.sql) depends on a node named 'stg_orders' which was not found\n"
+          },
+          "stage": "initial_build"
+        },
+        {
+          "applied": [],
+          "build": {
+            "returncode": 2,
+            "stderr": "",
+            "stdout": "\u001b[0m15:04:22  Running with dbt=1.11.14\n\u001b[0m15:04:23  Registered adapter: duckdb=1.11.0\n\u001b[0m15:04:23  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m15:04:23  Encountered an error:\nCompilation Error\n  Model 'model.driftdoctor_fallback_demo.mart_orders' (models/mart_orders.sql) depends on a node named 'stg_orders' which was not found\n"
+          },
+          "output": {
+            "explanation": "Applied high-confidence repair skills derived from visible project structure and documented business contracts.",
+            "files": [],
+            "root_cause_class": "unknown",
+            "skills": []
+          },
+          "remaining_contract_concerns": [],
+          "skills": [],
+          "stage": "contract_skills"
+        }
+      ]
+    }
+  }
+}
