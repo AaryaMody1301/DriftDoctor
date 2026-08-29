@@ -1,9 +1,6 @@
 name: phase9-selective-agency
 
 on:
-  push:
-    branches:
-      - phase-9-agentic-submission-finalization
   workflow_dispatch:
 
 permissions:
