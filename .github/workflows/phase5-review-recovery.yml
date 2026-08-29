@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Cancel obsolete queued and in-progress workflow runs
+      - name: Cancel obsolete workflow runs
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,7 +62,7 @@ jobs:
 
           cancelled = []
           skipped = []
-          for status in ("in_progress", "queued"):
+          for status in ("in_progress", "queued", "requested", "waiting", "pending"):
               data = get_json(
                   f"https://api.github.com/repos/{repo}/actions/runs"
                   f"?status={status}&per_page=100"
@@ -166,7 +166,7 @@ jobs:
           retention-days: 30
 
   aggregate-review:
-    if: always()
+    if: ${{ always() && !cancelled() }}
     needs: review-shard
     runs-on: ubuntu-latest
     timeout-minutes: 15
