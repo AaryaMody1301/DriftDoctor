@@ -1,23 +1,59 @@
 # Reproducing DriftDoctor
 
-This guide is for a judge starting from a clean machine. The benchmark is synthetic and local: dbt Core + DuckDB, with no warehouse credentials and no paid API key.
+This guide is written for a judge starting from a clean machine. DriftDoctor uses synthetic local data, dbt Core, and DuckDB. The primary final benchmark requires no warehouse account, private credential, paid model API, or model runtime.
 
-**Final primary evaluation:** `driftdoctor-v4-hybrid` on context v0.2 scored **12/12 verified repairs (100% VRR)** versus **0/12** for the matched-context simple-agent baseline. It also scored 12/12 root-cause accuracy, used **0 model calls**, invoked fallback on **0 cases**, and averaged **6.9895s/case**. Every declared benchmark incident matched a high-confidence specialized repair skill, so the configured `qwen2.5-coder:1.5b` fallback was not needed in this run.
+## Results to reproduce
+
+### Primary frozen benchmark
+
+The final selective-agency entry point processes the same 12 context-v0.2 incidents used by the matched baseline:
+
+```text
+complete=true
+expected_cases=12
+scored_cases=12
+solved=12
+verified_resolution_rate=1.0
+root_cause_correct=12
+model_calls=0
+agent_cases=0
+escalation_cases=0
+mean_elapsed_seconds=6.640333333333333
+```
+
+The matched-context simple-agent baseline is 0/12 VRR. The historical staged LLM workflow is 1/12 VRR.
+
+### Representative agent trajectory
+
+A separate held-out ambiguous dependency case demonstrates the final bounded agent:
+
+```text
+skills-only build return code=2
+skills-only human escalation=true
+agent model calls=1
+fallback_mode=bounded_ambiguity_resolver
+selected candidate=stg_orders_v2
+held-out evaluator passed=true
+elapsed_seconds=19.89
+```
+
+This case is not included in the 12-case primary VRR.
 
 ## 1. Requirements
 
 - Linux or macOS
-- Python 3.13; submission CI uses **3.13.15**
+- Python 3.13; CI uses **3.13.15**
 - Git
-- no Ollama installation is required to reproduce the frozen Phase 8 result, because no benchmark case falls through to model inference
-- Ollama is required only to reproduce historical model-based experiments or exercise a hybrid fallback on an unresolved incident
+- approximately 1 GB free disk only when reproducing the optional local-agent trajectory
+- Ollama **0.33.2** and `qwen2.5-coder:1.5b` only for model-based historical runs or the held-out agent case
 
-Pinned Python dependencies are in `requirements.txt`:
+Pinned Python packages:
 
 ```text
 dbt-core==1.11.14
 dbt-duckdb==1.11.0
 duckdb==1.5.5
+PyYAML==6.0.3
 ```
 
 ## 2. Clone and install
@@ -31,110 +67,116 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## 3. Validate the frozen benchmark and integrity checks
+Equivalent shortcut:
 
 ```bash
-python scripts/validate_benchmark.py
+make install
+```
+
+## 3. Run tests and integrity gates
+
+```bash
 python -m unittest discover -s tests -p 'test_*.py'
+python scripts/validate_benchmark.py
 python scripts/smoke_benchmark.py --timeout 90
 python scripts/submission_preflight.py
 ```
 
 Expected properties:
 
-- exactly 12 benchmark cases;
-- exactly one challenge case, DD-012;
-- every original broken fixture fails its external oracle;
-- every evaluator-only reference repair passes its oracle;
-- repair-skill anti-leakage/generalization tests pass;
-- final checked-in evidence/provenance and claim hygiene pass submission preflight.
+- all unit, safety, mutation, anti-leakage, and bounded-agent tests pass;
+- the benchmark contains exactly 12 cases and one challenge case, DD-012;
+- every broken fixture fails its external oracle;
+- every evaluator-only reference repair passes;
+- final evidence, license inventory, claims, workflow set, and provenance pass preflight.
 
-Reference repairs exist only to prove benchmark solvability. They are never placed in the repair workspace.
-
-## 4. Reproduce the final Phase 8 hybrid evaluation
+Run all non-model verification plus the final primary evaluation with:
 
 ```bash
-python scripts/run_phase8.py \
-  --model qwen2.5-coder:1.5b \
-  --max-calls 14
+make verify
 ```
 
-Expected aggregate:
-
-```text
-system=driftdoctor-v4-hybrid
-complete=true
-expected_cases=12
-scored_cases=12
-solved=12
-verified_resolution_rate=1.0
-root_cause_correct=12
-root_cause_accuracy=1.0
-fallback_cases=0
-mean_model_calls=0.0
-infrastructure_errors=[]
-```
-
-Because each frozen case is solved before fallback, this command does not contact a model runtime on the declared benchmark.
-
-For the explicit no-fallback ablation:
+## 4. Reproduce the final primary result
 
 ```bash
-python scripts/run_phase8.py \
-  --no-fallback \
-  --model qwen2.5-coder:1.5b \
-  --max-calls 14
+python scripts/run_phase9_primary.py
 ```
 
-Both measurements were executed in the same corrected CI run after all nine generalization/anti-leakage tests passed.
+This materializes each synthetic case in a disposable workspace, writes the same public business context, runs the final selective-agency workflow, and grades the result with the external evaluator.
 
-## 5. Frozen final provenance
+Expected output file:
 
 ```text
-workflow run: 33257030328
-repair-code evaluation SHA: 0c6cf9b42863db4f45a94add11509988bcaa7815
-
-hybrid artifact ID: 9716167394
-hybrid artifact SHA-256: b6788eb6ed860c339daf3c822639bfde9e759457c7ac9b7825d9a5e6da3ee030
-hybrid mean elapsed: 6.9895 seconds/case
-
-skills-only artifact ID: 9716167164
-skills-only artifact SHA-256: 404a8d60b1134ed78072421e5710ea1c0e8f19a4d15b4779e61f9c422201c030
-skills-only mean elapsed: 7.066 seconds/case
+benchmark/results/phase9/primary-regression/summary.json
 ```
 
-Durable evidence:
+Expected aggregate is the primary result shown at the top of this guide. All 12 cases are handled by deterministic skills, so this command does not contact Ollama.
+
+### Frozen primary provenance
 
 ```text
-evidence/phase8/
-  README.md
-  manifest.json
-  hybrid/
-    DD-001.json ... DD-012.json
-    summary.json
-  skills-only/
-    DD-001.json ... DD-012.json
-    summary.json
+workflow run: 33259014887
+evaluation SHA: 33caefca6a5a003090edea1ba6cc5d3cc0bd2dbc
+artifact ID: 9716719953
+artifact SHA-256: e41106ab0169566e8492bd0d125956f8cc9d59323aa8071c61ddcc2946753d78
+checked-in summary: evidence/phase9/primary-summary.json
 ```
 
-Every case record includes the selected repair skills, generated diff, dbt build evidence, external oracle checks, elapsed time, root-cause result, fallback usage, and model-call count.
+The full corrected Phase 8 raw 12-case records remain under `evidence/phase8/`; Phase 9 confirms the final safety/agency changes did not regress that result.
 
-## 6. Anti-leakage/generalization guard
+## 5. Reproduce the bounded-agent trajectory
 
-`tests/test_repair_skills.py` rejects benchmark case IDs/evaluator imports in the repair runtime and contains mutation-style cases using source/model/contract identifiers and time zones outside the frozen benchmark. A mutation test found a real fuzzy-alias bug in the first 12/12 implementation; the bug was fixed generically, then both 12-case measurements were rerun on the corrected SHA above before final evidence was frozen.
+Install the pinned local model runtime:
 
-The repair runtime reads only:
+```bash
+curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.33.2 sh
+ollama serve
+```
 
-- the incident description;
-- the local dbt project;
-- local source CSV headers/samples;
-- `BUSINESS_CONTEXT.md`.
+Run `ollama serve` in a separate terminal when it does not start as a service. Then:
 
-`benchmark/oracles.py` and `benchmark/reference_repairs.py` are evaluator-side only.
+```bash
+ollama pull qwen2.5-coder:1.5b
+ollama --version
+ollama list
+python scripts/run_agent_fallback_demo.py --model qwen2.5-coder:1.5b
+```
 
-## 7. Run the hybrid product on a local project
+Expected output file:
 
-The judge-facing CLI operates on a disposable copy and never edits the source project. The source project must contain `dbt_project.yml` and a project-local `profiles.yml` suitable for a local/sandbox target.
+```text
+benchmark/results/phase9/agent-fallback-demo.json
+```
+
+Expected behavior:
+
+1. the skills-only control abstains, the project remains broken, and escalation is required;
+2. the agent sees exactly two observed candidate models plus `abstain` in its output schema;
+3. one model call selects `stg_orders_v2` from the documented active-vs-historical context;
+4. a deterministic existing-file patch is applied;
+5. dbt build and every held-out check pass.
+
+### Frozen agent-trajectory provenance
+
+```text
+workflow run: 33259014887
+evaluation SHA: 33caefca6a5a003090edea1ba6cc5d3cc0bd2dbc
+Ollama: 0.33.2
+model: qwen2.5-coder:1.5b
+model ID: d7372fd82851
+artifact ID: 9716761142
+artifact SHA-256: 77a7807842b16193afa23385bbc216794ec382d78e8b2c487d82f53791fc5c4a
+checked-in trajectory: evidence/phase9/agent-fallback-demo.json
+```
+
+## 6. Run the product CLI safely
+
+The source project must contain:
+
+- `dbt_project.yml`;
+- a project-local `profiles.yml` whose active adapter is DuckDB;
+- local/synthetic input data appropriate for the project;
+- optionally, a business-context Markdown/text file.
 
 ```bash
 python scripts/run_incident.py \
@@ -143,16 +185,7 @@ python scripts/run_incident.py \
   --business-context /path/to/business-rules.md
 ```
 
-Default behavior:
-
-1. inspect visible project/source/business-contract evidence;
-2. route matching high-confidence patterns through deterministic repair skills;
-3. run dbt build and visible contract checks;
-4. if unresolved, invoke the bounded local coding-model fallback;
-5. write an approval-ready `driftdoctor-report.json`;
-6. leave the original project unchanged and perform no deployment.
-
-To prohibit model inference entirely:
+Deterministic-only mode:
 
 ```bash
 python scripts/run_incident.py \
@@ -162,26 +195,57 @@ python scripts/run_incident.py \
   --no-fallback
 ```
 
-Safety behavior:
+The command prints the sandbox path and writes `driftdoctor-report.json` containing:
 
-- a custom sandbox may not contain the source project or live inside it;
-- `--force` replaces only a directory carrying DriftDoctor's sandbox ownership marker;
-- exit code `0` means the sandbox build passed, but human approval/project-specific semantic checks are still required;
-- exit code `1` means the attempted repair did not reach a successful build;
-- exit code `2` means the optional local-model fallback failed at the inference transport layer.
+- execution/approval status;
+- broken-state and final build evidence;
+- selected repair skills;
+- bounded-agent decision when used;
+- remaining visible-contract concerns;
+- reviewable source/config diff;
+- explicit human-approval and escalation fields.
+
+Safety guarantees:
+
+- the original project is never modified;
+- custom sandboxes cannot contain the source project or live inside it;
+- `--force` deletes only a directory carrying DriftDoctor's ownership marker;
+- non-DuckDB profiles are refused;
+- generated `.duckdb` state is excluded from the approval diff;
+- no remote push, merge, deployment, or production connection occurs;
+- exit `0` means local checks passed but human approval is still required;
+- exit `1` means build/contract verification failed or escalation is required;
+- exit `2` means the optional local inference transport failed.
+
+## 7. Inspect one primary benchmark case
+
+```bash
+python scripts/materialize_case.py DD-012 --output .work/DD-012 --force
+```
+
+Add the public context used by the comparison:
+
+```bash
+python - <<'PY'
+from pathlib import Path
+from benchmark.public_context import write_public_context
+write_public_context('DD-012', Path('.work/DD-012'))
+PY
+```
+
+After an attempted repair, grade externally:
+
+```bash
+python scripts/evaluate_case.py DD-012 --workdir .work/DD-012
+```
+
+The repair runtime never receives `benchmark/oracles.py`, ground-truth labels, or `benchmark/reference_repairs.py`.
 
 ## 8. Reproduce historical comparisons
 
-For historical model-based measurements, install/start Ollama and pull the comparison model:
+Start Ollama and pull the model as described above.
 
-```bash
-curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.33.2 sh
-ollama serve
-ollama pull qwen2.5-coder:1.5b
-ollama list
-```
-
-Matched-context baseline:
+Matched-context simple-agent baseline:
 
 ```bash
 python scripts/run_phase5.py \
@@ -199,25 +263,26 @@ python scripts/run_phase5.py \
   --max-calls 14
 ```
 
-Checked-in comparison:
+The semantic-review experiment remains intentionally incomplete/unscored in `evidence/phase5/driftdoctor-review-incomplete/`; do not convert its partial records into a VRR.
+
+## 9. Evidence locations
 
 ```text
-context-baseline             0/12 VRR (0.00%), 11.75 model turns/case, 39.15s/case
-driftdoctor-no-review        1/12 VRR (8.33%), 2.58 model calls/case, 185.21s/case
-Phase 8 skills-only         12/12 VRR (100%), 0 model calls/case, 7.066s/case
-Phase 8 hybrid final        12/12 VRR (100%), 0 model calls/case, 6.9895s/case
+evidence/phase5/   matched baseline, staged LLM workflow, removed reviewer
+evidence/phase8/   complete corrected 12-case skill-first raw evidence
+evidence/phase9/   final no-regression summary and bounded-agent trajectory
 ```
 
-The old semantic-review experiment remains deliberately incomplete/unscored in `evidence/phase5/driftdoctor-review-incomplete/` because it did not produce a valid 12/12 aggregate.
+Every published quantitative claim points to a checked-in record or manifest containing the source run, evaluated SHA, artifact ID, and digest.
 
-### Historical Ollama provenance note
+## 10. Runtime and cost
 
-The publishable Phase 5 run used the official Ollama installer but did not print its exact CLI version. The repository does not invent that historical version. Post-evaluation manual model workflows pin Ollama `0.33.2` and print runtime/model identity.
+- Paid API cost: **$0**.
+- Primary final benchmark: about **6.64s/case** mean on the recorded GitHub-hosted CPU run; no model call.
+- Held-out bounded-agent case: **19.89s** after runtime/model setup; one local model call.
+- Model download: approximately **986 MB** for the pinned tag in the recorded run.
+- Clean-machine installation and model download time depend on network and host performance and are not included in the per-case figures.
 
-## 9. Resource interpretation
+## 11. Scope
 
-The resource difference is intentional. The baseline spends model turns on every incident; the final hybrid router sends well-specified recurring repairs to inspectable specialized tools and reserves model inference for unresolved ambiguity. On the declared benchmark the fallback is never reached, so the measured final system uses fewer model resources, not more.
-
-## 10. Scope
-
-The 12/12 result is a result on the declared synthetic contract-drift benchmark, not proof of arbitrary open-ended dbt repair. The specialized skills intentionally target recurring high-confidence operational patterns. Incidents outside those patterns route to the model fallback and require broader independent evaluation before production use.
+The 12/12 result applies to the declared synthetic contract-drift benchmark. The agent trajectory demonstrates one separately evaluated bounded ambiguity pattern. Neither result proves arbitrary open-ended dbt repair. Unsupported patterns deliberately escalate to a qualified human reviewer.
