@@ -1,0 +1,103 @@
+{
+  "case_id": "DD-003",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex af474a2..6a09ae8 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/stg_orders.sql b/models/stg_orders.sql\nindex c59c6ee..73766e2 100644\n--- a/models/stg_orders.sql\n+++ b/models/stg_orders.sql\n@@ -1,4 +1,4 @@\n select\n     order_id,\n-    amount_text * 1.0 as amount\n+    try_cast(amount_text as decimal(18,2)) as amount\n from {{ source('raw', 'raw_orders') }}\n",
+  "elapsed_seconds": 7.174,
+  "fallback_used": false,
+  "incident": "A revenue transformation now fails on new source records. Investigate the type mismatch and repair the model without silently accepting invalid values.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 0,
+  "oracle": {
+    "case_id": "DD-003",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[1, 100.5], [2, None], [3, 25.0]]; actual=[[1, 100.5], [2, None], [3, 25.0]]",
+        "name": "safe_numeric_conversion",
+        "passed": true
+      },
+      {
+        "detail": "expected=1; actual=1",
+        "name": "invalid_numeric_is_not_silently_coerced",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m14:01:26  Running with dbt=1.11.14\n\u001b[0m14:01:26  Registered adapter: duckdb=1.11.0\n\u001b[0m14:01:27  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:01:27  \n\u001b[0m14:01:27  Concurrency: 1 threads (target='dev')\n\u001b[0m14:01:27  \n\u001b[0m14:01:27  1 of 3 START sql table model analytics.stg_orders .............................. [RUN]\n\u001b[0m14:01:27  1 of 3 OK created sql table model analytics.stg_orders ......................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m14:01:27  2 of 3 START test not_null_stg_orders_order_id ................................. [RUN]\n\u001b[0m14:01:27  2 of 3 PASS not_null_stg_orders_order_id ....................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:01:27  3 of 3 START test unique_stg_orders_order_id ................................... [RUN]\n\u001b[0m14:01:27  3 of 3 PASS unique_stg_orders_order_id ......................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:01:27  \n\u001b[0m14:01:27  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.34 seconds (0.34s).\n\u001b[0m14:01:27  \n\u001b[0m14:01:27  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:01:27  \n\u001b[0m14:01:27  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n",
+    "passed": true
+  },
+  "passed": true,
+  "remaining_contract_concerns": [],
+  "root_cause_correct": true,
+  "root_cause_prediction": "source_type_changed",
+  "skills": [
+    "safe_numeric"
+  ],
+  "status": "scored",
+  "system": "driftdoctor-v4-skills-only",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "repair_skill:safe_numeric"
+      ],
+      "files_to_change": [
+        "models/stg_orders.sql"
+      ],
+      "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+      "root_cause_class": "source_type_changed"
+    },
+    "elapsed_seconds": 7.174,
+    "fallback_used": false,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m14:01:23  Running with dbt=1.11.14\n\u001b[0m14:01:23  Registered adapter: duckdb=1.11.0\n\u001b[0m14:01:24  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  Concurrency: 1 threads (target='dev')\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  1 of 3 START sql table model analytics.stg_orders .............................. [RUN]\n\u001b[0m14:01:24  1 of 3 OK created sql table model analytics.stg_orders ......................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:01:24  2 of 3 START test not_null_stg_orders_order_id ................................. [RUN]\n\u001b[0m14:01:24  2 of 3 PASS not_null_stg_orders_order_id ....................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:01:24  3 of 3 START test unique_stg_orders_order_id ................................... [RUN]\n\u001b[0m14:01:24  3 of 3 PASS unique_stg_orders_order_id ......................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.27 seconds (0.27s).\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 0,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "source_type_changed",
+    "skills": [
+      "safe_numeric"
+    ],
+    "system": "driftdoctor-v0.4-hybrid-skills",
+    "trajectory": [
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/stg_orders.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m14:01:23  Running with dbt=1.11.14\n\u001b[0m14:01:23  Registered adapter: duckdb=1.11.0\n\u001b[0m14:01:24  Found 1 model, 2 data tests, 1 source, 500 macros\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  Concurrency: 1 threads (target='dev')\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  1 of 3 START sql table model analytics.stg_orders .............................. [RUN]\n\u001b[0m14:01:24  1 of 3 OK created sql table model analytics.stg_orders ......................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:01:24  2 of 3 START test not_null_stg_orders_order_id ................................. [RUN]\n\u001b[0m14:01:24  2 of 3 PASS not_null_stg_orders_order_id ....................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:01:24  3 of 3 START test unique_stg_orders_order_id ................................... [RUN]\n\u001b[0m14:01:24  3 of 3 PASS unique_stg_orders_order_id ......................................... [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  Finished running 1 table model, 2 data tests in 0 hours 0 minutes and 0.27 seconds (0.27s).\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:01:24  \n\u001b[0m14:01:24  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=3\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence contract repair skills derived from visible project evidence and BUSINESS_CONTEXT.",
+          "files": [
+            {
+              "content": "select\n    order_id,\n    try_cast(amount_text as decimal(18,2)) as amount\nfrom {{ source('raw', 'raw_orders') }}\n",
+              "path": "models/stg_orders.sql"
+            }
+          ],
+          "root_cause_class": "source_type_changed",
+          "skills": [
+            "safe_numeric"
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "skills": [
+          "safe_numeric"
+        ],
+        "stage": "contract_skills"
+      }
+    ]
+  }
+}

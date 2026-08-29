@@ -1,0 +1,114 @@
+{
+  "case_results": [
+    {
+      "case_id": "DD-001",
+      "elapsed_seconds": 11.182,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-002",
+      "elapsed_seconds": 7.089,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-003",
+      "elapsed_seconds": 7.174,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-004",
+      "elapsed_seconds": 7.61,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-005",
+      "elapsed_seconds": 7.325,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-006",
+      "elapsed_seconds": 7.292,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-007",
+      "elapsed_seconds": 7.387,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-008",
+      "elapsed_seconds": 7.338,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-009",
+      "elapsed_seconds": 7.532,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-010",
+      "elapsed_seconds": 7.346,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-011",
+      "elapsed_seconds": 7.333,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    },
+    {
+      "case_id": "DD-012",
+      "elapsed_seconds": 9.945,
+      "fallback_used": false,
+      "model_calls": 0,
+      "passed": true,
+      "root_cause_correct": true
+    }
+  ],
+  "complete": true,
+  "context_version": "0.2",
+  "expected_cases": 12,
+  "fallback_cases": 0,
+  "infrastructure_errors": [],
+  "mean_elapsed_seconds": 7.879416666666667,
+  "mean_model_calls": 0.0,
+  "model": "qwen2.5-coder:1.5b",
+  "root_cause_accuracy": 1.0,
+  "root_cause_correct": 12,
+  "scored_cases": 12,
+  "solved": 12,
+  "system": "driftdoctor-v4-skills-only",
+  "verified_resolution_rate": 1.0
+}

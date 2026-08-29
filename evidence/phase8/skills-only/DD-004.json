@@ -1,0 +1,103 @@
+{
+  "case_id": "DD-004",
+  "context_version": "0.2",
+  "diff": "diff --git a/benchmark.duckdb b/benchmark.duckdb\nindex 94152c3..19e2c67 100644\nBinary files a/benchmark.duckdb and b/benchmark.duckdb differ\ndiff --git a/models/mart_orders.sql b/models/mart_orders.sql\nindex a70c196..eba0cac 100644\n--- a/models/mart_orders.sql\n+++ b/models/mart_orders.sql\n@@ -2,4 +2,4 @@ select\n     order_id,\n     customer_id,\n     amount\n-from {{ ref('stg_orders') }}\n+from {{ ref('stg_orders_v2') }}\n",
+  "elapsed_seconds": 7.61,
+  "fallback_used": false,
+  "incident": "A downstream mart stopped compiling after a project refactor. Restore the dependency correctly and keep the public mart contract unchanged.",
+  "model": "qwen2.5-coder:1.5b",
+  "model_calls": 0,
+  "oracle": {
+    "case_id": "DD-004",
+    "checks": [
+      {
+        "detail": "returncode=0",
+        "name": "dbt_build_succeeds",
+        "passed": true
+      },
+      {
+        "detail": "expected=[[1, 10, 100], [2, 20, 50]]; actual=[[1, 10, 100], [2, 20, 50]]",
+        "name": "renamed_ref_output_contract",
+        "passed": true
+      },
+      {
+        "detail": "old model ref must not remain",
+        "name": "no_stale_ref",
+        "passed": true
+      }
+    ],
+    "dbt_returncode": 0,
+    "dbt_stderr": "",
+    "dbt_stdout": "\u001b[0m14:01:37  Running with dbt=1.11.14\n\u001b[0m14:01:37  Registered adapter: duckdb=1.11.0\n\u001b[0m14:01:37  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m14:01:37  \n\u001b[0m14:01:37  Concurrency: 1 threads (target='dev')\n\u001b[0m14:01:37  \n\u001b[0m14:01:37  1 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m14:01:38  1 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.12s]\n\u001b[0m14:01:38  2 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m14:01:38  2 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.03s]\n\u001b[0m14:01:38  3 of 4 START test not_null_mart_orders_order_id ................................ [RUN]\n\u001b[0m14:01:38  3 of 4 PASS not_null_mart_orders_order_id ...................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:01:38  4 of 4 START test unique_mart_orders_order_id .................................. [RUN]\n\u001b[0m14:01:38  4 of 4 PASS unique_mart_orders_order_id ........................................ [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:01:38  \n\u001b[0m14:01:38  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.37 seconds (0.37s).\n\u001b[0m14:01:38  \n\u001b[0m14:01:38  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:01:38  \n\u001b[0m14:01:38  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n",
+    "passed": true
+  },
+  "passed": true,
+  "remaining_contract_concerns": [],
+  "root_cause_correct": true,
+  "root_cause_prediction": "model_ref_renamed",
+  "skills": [
+    "retarget_ref"
+  ],
+  "status": "scored",
+  "system": "driftdoctor-v4-skills-only",
+  "trajectory": {
+    "diagnosis": {
+      "evidence": [
+        "repair_skill:retarget_ref"
+      ],
+      "files_to_change": [
+        "models/mart_orders.sql"
+      ],
+      "hypothesis": "Visible contract and project structure matched deterministic repair skills.",
+      "root_cause_class": "model_ref_renamed"
+    },
+    "elapsed_seconds": 7.61,
+    "fallback_used": false,
+    "final_build": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\u001b[0m14:01:32  Running with dbt=1.11.14\n\u001b[0m14:01:33  Registered adapter: duckdb=1.11.0\n\u001b[0m14:01:33  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m14:01:35  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  Concurrency: 1 threads (target='dev')\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  1 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m14:01:35  1 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:01:35  2 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m14:01:35  2 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m14:01:35  3 of 4 START test not_null_mart_orders_order_id ................................ [RUN]\n\u001b[0m14:01:35  3 of 4 PASS not_null_mart_orders_order_id ...................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:01:35  4 of 4 START test unique_mart_orders_order_id .................................. [RUN]\n\u001b[0m14:01:35  4 of 4 PASS unique_mart_orders_order_id ........................................ [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.30 seconds (0.30s).\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+    },
+    "model": "qwen2.5-coder:1.5b",
+    "model_calls": 0,
+    "remaining_contract_concerns": [],
+    "skill_root_cause_class": "model_ref_renamed",
+    "skills": [
+      "retarget_ref"
+    ],
+    "system": "driftdoctor-v0.4-hybrid-skills",
+    "trajectory": [
+      {
+        "applied": [
+          {
+            "applied": true,
+            "path": "models/mart_orders.sql"
+          }
+        ],
+        "build": {
+          "returncode": 0,
+          "stderr": "",
+          "stdout": "\u001b[0m14:01:32  Running with dbt=1.11.14\n\u001b[0m14:01:33  Registered adapter: duckdb=1.11.0\n\u001b[0m14:01:33  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m14:01:35  Found 2 models, 2 data tests, 1 source, 500 macros\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  Concurrency: 1 threads (target='dev')\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  1 of 4 START sql table model analytics.stg_orders_v2 ........................... [RUN]\n\u001b[0m14:01:35  1 of 4 OK created sql table model analytics.stg_orders_v2 ...................... [\u001b[32mOK\u001b[0m in 0.11s]\n\u001b[0m14:01:35  2 of 4 START sql table model analytics.mart_orders ............................. [RUN]\n\u001b[0m14:01:35  2 of 4 OK created sql table model analytics.mart_orders ........................ [\u001b[32mOK\u001b[0m in 0.02s]\n\u001b[0m14:01:35  3 of 4 START test not_null_mart_orders_order_id ................................ [RUN]\n\u001b[0m14:01:35  3 of 4 PASS not_null_mart_orders_order_id ...................................... [\u001b[32mPASS\u001b[0m in 0.04s]\n\u001b[0m14:01:35  4 of 4 START test unique_mart_orders_order_id .................................. [RUN]\n\u001b[0m14:01:35  4 of 4 PASS unique_mart_orders_order_id ........................................ [\u001b[32mPASS\u001b[0m in 0.02s]\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  Finished running 2 table models, 2 data tests in 0 hours 0 minutes and 0.30 seconds (0.30s).\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m14:01:35  \n\u001b[0m14:01:35  Done. PASS=4 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=4\n"
+        },
+        "output": {
+          "explanation": "Applied high-confidence contract repair skills derived from visible project evidence and BUSINESS_CONTEXT.",
+          "files": [
+            {
+              "content": "select\n    order_id,\n    customer_id,\n    amount\nfrom {{ ref('stg_orders_v2') }}\n",
+              "path": "models/mart_orders.sql"
+            }
+          ],
+          "root_cause_class": "model_ref_renamed",
+          "skills": [
+            "retarget_ref"
+          ]
+        },
+        "remaining_contract_concerns": [],
+        "skills": [
+          "retarget_ref"
+        ],
+        "stage": "contract_skills"
+      }
+    ]
+  }
+}

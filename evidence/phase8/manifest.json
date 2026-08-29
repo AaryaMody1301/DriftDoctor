@@ -1,0 +1,15 @@
+{
+  "artifact_id": 9715977028,
+  "artifact_name": "phase8-skills-only-33256430999",
+  "artifact_digest": "sha256:e97831f48b273f02ea280ba9ded5ddbbef0169f6201f7748f4dd0c7cf82b0f32",
+  "workflow_run_id": 33256430999,
+  "evaluation_head_sha": "b0dbe1faddb0979f26421a8976e62780034dc067",
+  "context_version": "0.2",
+  "selected_system": "driftdoctor-v4-skills-only",
+  "expected_cases": 12,
+  "scored_cases": 12,
+  "verified_resolution_rate": 1.0,
+  "root_cause_accuracy": 1.0,
+  "mean_model_calls": 0.0,
+  "mean_elapsed_seconds": 7.879416666666667
+}
