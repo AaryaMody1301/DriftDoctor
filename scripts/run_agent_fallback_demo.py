@@ -19,7 +19,7 @@ INCIDENT = (
 )
 CONTEXT = """# Business context
 
-The public `mart_orders` contract is `order_id`, `amount`.
+The public mart contract is `order_id`, `amount`.
 The active current staging dependency is `stg_orders_v2`.
 `stg_orders_archive` is a historical snapshot and must not be used for the live mart.
 """
@@ -30,6 +30,7 @@ def write_fixture(root: Path) -> None:
         shutil.rmtree(root)
     (root / "models").mkdir(parents=True)
     (root / "seeds").mkdir(parents=True)
+    (root / "input").mkdir(parents=True)
     (root / "dbt_project.yml").write_text(
         """name: driftdoctor_fallback_demo
 version: '1.0'
@@ -56,7 +57,10 @@ models:
         encoding="utf-8",
     )
     (root / "BUSINESS_CONTEXT.md").write_text(CONTEXT, encoding="utf-8")
-    (root / "seeds" / "raw_orders.csv").write_text("order_id,amount\n1,10.0\n2,20.0\n", encoding="utf-8")
+    raw = "order_id,amount\n1,10.0\n2,20.0\n"
+    (root / "seeds" / "raw_orders.csv").write_text(raw, encoding="utf-8")
+    # Input sample exists only as visible schema evidence for the repair workflow.
+    (root / "input" / "raw_orders.csv").write_text(raw, encoding="utf-8")
     (root / "models" / "stg_orders_v2.sql").write_text(
         "select order_id, amount from {{ ref('raw_orders') }}\n", encoding="utf-8"
     )
@@ -87,8 +91,10 @@ def oracle(root: Path, result: dict) -> dict:
         "dbt_build_succeeds": final_build["returncode"] == 0,
         "current_dependency_selected": "ref('stg_orders_v2')" in mart,
         "historical_dependency_rejected": "stg_orders_archive" not in mart,
-        "agent_was_used": int(result.get("model_calls", 0)) >= 1,
+        "agent_was_used": int(result.get("model_calls", 0)) == 1,
         "bounded_resolver_used": result.get("fallback_mode") == "bounded_ambiguity_resolver",
+        "no_human_escalation": result.get("escalation_required") is False,
+        "no_remaining_contract_concerns": not result.get("remaining_contract_concerns"),
     }
     return {"passed": all(checks.values()), "checks": checks, "final_build": final_build}
 
@@ -117,6 +123,7 @@ def main() -> int:
         "skills_only_control": {
             "model_calls": skills_result.get("model_calls"),
             "fallback_used": skills_result.get("fallback_used"),
+            "escalation_required": skills_result.get("escalation_required"),
             "build_returncode": skills_oracle["returncode"],
             "trajectory": skills_result,
         },
@@ -128,6 +135,7 @@ def main() -> int:
     output.write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
     print(json.dumps({
         "skills_only_build_returncode": skills_oracle["returncode"],
+        "skills_only_escalated": skills_result.get("escalation_required"),
         "hybrid_passed": evaluation["passed"],
         "hybrid_model_calls": result.get("model_calls"),
         "fallback_mode": result.get("fallback_mode"),
