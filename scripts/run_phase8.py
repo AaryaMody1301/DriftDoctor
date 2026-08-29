@@ -57,6 +57,11 @@ def main() -> int:
     parser.add_argument("--model", default="qwen2.5-coder:1.5b")
     parser.add_argument("--max-calls", type=int, default=14)
     parser.add_argument("--case")
+    parser.add_argument(
+        "--no-fallback",
+        action="store_true",
+        help="Measure deterministic contract skills only; do not contact the local coding model.",
+    )
     args = parser.parse_args()
 
     cases = load_cases()
@@ -65,7 +70,8 @@ def main() -> int:
         if not cases:
             raise SystemExit(f"unknown case: {args.case}")
 
-    results_dir = ROOT / "benchmark" / "results" / "phase8" / "driftdoctor-v4"
+    mode = "skills-only" if args.no_fallback else "hybrid"
+    results_dir = ROOT / "benchmark" / "results" / "phase8" / mode
     if results_dir.exists():
         shutil.rmtree(results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -75,7 +81,7 @@ def main() -> int:
 
     for case in cases:
         case_id = case["id"]
-        workdir = ROOT / ".work" / f"phase8-driftdoctor-v4-{case_id}"
+        workdir = ROOT / ".work" / f"phase8-{mode}-{case_id}"
         if workdir.exists():
             shutil.rmtree(workdir)
         materialize_case(case_id, workdir, force=True)
@@ -88,11 +94,12 @@ def main() -> int:
                 case["incident"],
                 args.model,
                 max_model_calls=args.max_calls,
+                allow_fallback=not args.no_fallback,
             )
         except InferenceTransportError as exc:
             record = {
                 "case_id": case_id,
-                "system": "driftdoctor-v4-hybrid-skills",
+                "system": f"driftdoctor-v4-{mode}",
                 "context_version": "0.2",
                 "model": args.model,
                 "status": "infrastructure_error",
@@ -111,7 +118,7 @@ def main() -> int:
         oracle = evaluate_case(case_id, workdir, timeout_seconds=120)
         record = {
             "case_id": case_id,
-            "system": "driftdoctor-v4-hybrid-skills",
+            "system": f"driftdoctor-v4-{mode}",
             "context_version": "0.2",
             "model": args.model,
             "incident": case["incident"],
@@ -142,7 +149,7 @@ def main() -> int:
     scored = len(summary)
     complete = scored == expected and not infrastructure_errors
     aggregate = {
-        "system": "driftdoctor-v4-hybrid-skills",
+        "system": f"driftdoctor-v4-{mode}",
         "context_version": "0.2",
         "model": args.model,
         "expected_cases": expected,
