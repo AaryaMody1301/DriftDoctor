@@ -1,0 +1,105 @@
+name: freeze-phase8-evidence
+
+on:
+  push:
+    branches:
+      - phase-8-hybrid-repair-skills
+    paths:
+      - ".github/workflows/freeze-phase8-evidence.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: phase-8-hybrid-repair-skills
+      - name: Download fixed Phase 8 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          ARTIFACT_ID: "9715977028"
+        run: |
+          rm -rf evidence/phase8 /tmp/phase8.zip /tmp/phase8
+          mkdir -p evidence/phase8/skills-only /tmp/phase8
+          curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            -o /tmp/phase8.zip
+          unzip -q /tmp/phase8.zip -d /tmp/phase8
+          cp /tmp/phase8/DD-*.json /tmp/phase8/summary.json evidence/phase8/skills-only/
+      - name: Verify frozen result before commit
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('evidence/phase8/skills-only')
+          summary = json.loads((root / 'summary.json').read_text())
+          case_files = sorted(root.glob('DD-*.json'))
+          assert len(case_files) == 12, len(case_files)
+          assert summary['complete'] is True
+          assert summary['expected_cases'] == 12
+          assert summary['scored_cases'] == 12
+          assert summary['solved'] == 12
+          assert summary['verified_resolution_rate'] == 1.0
+          assert summary['root_cause_correct'] == 12
+          assert summary['root_cause_accuracy'] == 1.0
+          assert summary['mean_model_calls'] == 0.0
+          assert not summary['infrastructure_errors']
+          for path in case_files:
+              data = json.loads(path.read_text())
+              assert data['passed'] is True, path
+              assert data['root_cause_correct'] is True, path
+              assert data['model_calls'] == 0, path
+          PY
+      - name: Write evidence provenance
+        run: |
+          cat > evidence/phase8/manifest.json <<'EOF'
+          {
+            "artifact_id": 9715977028,
+            "artifact_name": "phase8-skills-only-33256430999",
+            "artifact_digest": "sha256:e97831f48b273f02ea280ba9ded5ddbbef0169f6201f7748f4dd0c7cf82b0f32",
+            "workflow_run_id": 33256430999,
+            "evaluation_head_sha": "b0dbe1faddb0979f26421a8976e62780034dc067",
+            "context_version": "0.2",
+            "selected_system": "driftdoctor-v4-skills-only",
+            "expected_cases": 12,
+            "scored_cases": 12,
+            "verified_resolution_rate": 1.0,
+            "root_cause_accuracy": 1.0,
+            "mean_model_calls": 0.0,
+            "mean_elapsed_seconds": 7.879416666666667
+          }
+          EOF
+          cat > evidence/phase8/README.md <<'EOF'
+          # Phase 8 final evidence
+
+          This directory preserves the complete primary-evaluation evidence for the final high-confidence contract-skill path.
+
+          - Frozen benchmark/context: v0.2, 12 cases including DD-012 challenge case.
+          - Result: 12/12 verified repairs (100% VRR), 12/12 root-cause classification, zero infrastructure errors.
+          - Mean elapsed time: 7.8794 seconds per case.
+          - Model calls on these 12 cases: 0. The hybrid product retains the local coding-model path only as fallback for cases not handled by high-confidence skills.
+          - Workflow run: 33256430999.
+          - Evaluation SHA: `b0dbe1faddb0979f26421a8976e62780034dc067`.
+          - Artifact ID: 9715977028.
+          - Artifact digest: `sha256:e97831f48b273f02ea280ba9ded5ddbbef0169f6201f7748f4dd0c7cf82b0f32`.
+
+          `skills-only/` contains all 12 raw case records and `summary.json`. Each record includes the visible repair skills chosen, resulting diff, dbt build evidence, and external evaluator output.
+
+          The repair-skill runtime does not import `benchmark/oracles.py`, `benchmark/reference_repairs.py`, or benchmark case IDs. Anti-leakage and mutation-style generalization probes live in `tests/test_repair_skills.py` and run in submission CI.
+          EOF
+      - name: Remove one-shot workflow and commit evidence
+        run: |
+          rm .github/workflows/freeze-phase8-evidence.yml
+          git config user.name "driftdoctor-evidence-bot"
+          git config user.email "driftdoctor-evidence@users.noreply.github.com"
+          git add evidence/phase8 .github/workflows/freeze-phase8-evidence.yml
+          git commit -m "evidence: freeze complete Phase 8 results"
+          git push origin HEAD:phase-8-hybrid-repair-skills
