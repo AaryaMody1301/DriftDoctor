@@ -4,7 +4,7 @@
 
 > **Primary result:** **12/12 verified repairs (100% VRR)** on the frozen 12-case context-v0.2 benchmark, versus **0/12** for the matched-context simple-agent baseline. The final no-regression rerun classified **12/12 root causes**, used **0 model calls**, and averaged **6.64 seconds/case**. All declared primary cases matched deterministic high-confidence skills. This is a result on the published synthetic benchmark—not a claim that DriftDoctor repairs arbitrary dbt projects.
 >
-> **Agent evidence:** on a separate held-out ambiguous dependency case, the skills-only control failed and escalated; the bounded agent made **one** local model call, selected only from two observed existing candidates, produced a guarded patch, and passed every held-out check. That trajectory is deliberately kept separate from the primary VRR.
+> **Agent evidence:** on a separate held-out ambiguous dependency case, the skills-only control failed and escalated; the bounded agent made **one** local model call, selected only from two observed existing candidates, produced a guarded patch, and passed every held-out check. This held-out case is **not part of the primary VRR**. Its trajectory is deliberately reported separately.
 
 ## The user and bottleneck
 
