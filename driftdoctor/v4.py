@@ -5,7 +5,40 @@ from pathlib import Path
 
 from driftdoctor.repair_skills import propose_contract_patch
 from driftdoctor.v2 import _business_context, _run_build
-from driftdoctor.v3 import _apply_existing_only, run_v3, semantic_concerns
+from driftdoctor.v3 import run_v3, semantic_concerns
+
+
+def _apply_existing_only(root: Path, patch: dict) -> list[dict]:
+    """Apply complete-file replacements only to existing model/macro files."""
+    root = root.resolve()
+    applied: list[dict] = []
+    for item in patch.get("files", []):
+        raw = str(item.get("path", ""))
+        content = str(item.get("content", ""))
+        target = (root / raw).resolve()
+        reason = None
+        if root not in target.parents:
+            reason = "path escapes workspace"
+        elif not (raw.startswith("models/") or raw.startswith("macros/")):
+            reason = "path is outside editable models/macros scope"
+        elif not target.is_file():
+            reason = "new files are not allowed by the contract-skill guard"
+        elif len(content.strip()) < 12:
+            reason = "replacement is implausibly short"
+        elif "```" in content or "complete replacement contents" in content.lower():
+            reason = "replacement contains placeholder/markdown fencing"
+
+        if reason:
+            applied.append({"path": raw, "applied": False, "reason": reason})
+            continue
+
+        before = target.read_text(encoding="utf-8", errors="replace")
+        if before == content:
+            applied.append({"path": raw, "applied": False, "reason": "no change"})
+            continue
+        target.write_text(content, encoding="utf-8")
+        applied.append({"path": raw, "applied": True})
+    return applied
 
 
 def _skill_result(
