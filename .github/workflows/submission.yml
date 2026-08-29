@@ -1,0 +1,35 @@
+name: submission-preflight
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - "README.md"
+      - "REPRODUCE.md"
+      - "IMPROVEMENT_CHANGELOG.md"
+      - "docs/**"
+      - "benchmark/cases.json"
+      - "benchmark/results/phase5/**"
+      - "scripts/submission_preflight.py"
+      - "scripts/run_incident.py"
+      - "scripts/run_phase5.py"
+      - "scripts/aggregate_phase5.py"
+      - ".github/workflows/submission.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13.15"
+      - name: Validate benchmark contract
+        run: python scripts/validate_benchmark.py
+      - name: Audit submission package
+        run: python scripts/submission_preflight.py
