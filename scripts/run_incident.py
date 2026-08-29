@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,8 @@ from driftdoctor.v2 import InferenceTransportError  # noqa: E402
 from driftdoctor.v4 import run_v4  # noqa: E402
 
 SANDBOX_MARKER = ".driftdoctor-sandbox"
+_ALLOWED_DUCKDB_TARGET_KEYS = {"type", "path", "schema", "threads"}
+_REMOTE_PATH_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 
 
 def _read_required_text(path_value: str, label: str) -> str:
@@ -39,9 +42,35 @@ def _incident_text(args: argparse.Namespace) -> str:
     return _read_required_text(args.incident_file, "incident")
 
 
+def _validate_project_tree(source: Path) -> None:
+    """Reject project shapes that can escape the disposable-copy boundary."""
+    for path in source.rglob("*"):
+        if path.is_symlink():
+            raise SystemExit(f"source project must not contain symlinks: {path}")
+    python_models = sorted((source / "models").glob("**/*.py")) if (source / "models").is_dir() else []
+    if python_models:
+        relative = ", ".join(str(path.relative_to(source)) for path in python_models[:3])
+        raise SystemExit(
+            "judge CLI accepts SQL dbt models only; Python models can execute arbitrary local code: "
+            + relative
+        )
+
+
 def _copy_project(source: Path, sandbox: Path) -> None:
     ignored = shutil.ignore_patterns(
-        ".git", "target", "logs", "dbt_packages", "__pycache__", ".work", SANDBOX_MARKER
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".tox",
+        ".venv",
+        "venv",
+        "target",
+        "logs",
+        "dbt_packages",
+        "__pycache__",
+        ".work",
+        SANDBOX_MARKER,
     )
     shutil.copytree(source, sandbox, ignore=ignored)
 
@@ -61,10 +90,12 @@ def _validate_sandbox_target(source: Path, sandbox: Path) -> None:
 
 
 def _validate_local_duckdb_profile(source: Path) -> None:
-    """Refuse judge-CLI execution against a non-local warehouse target.
+    """Allow only a simple, local, disposable DuckDB target.
 
-    The hackathon product is intentionally scoped to disposable DuckDB projects. This
-    guard prevents a copied project from silently targeting Snowflake/BigQuery/etc.
+    A DuckDB adapter can still address MotherDuck, absolute files, attached remote
+    databases, cloud secrets, extensions, or plugins. The judge CLI deliberately
+    rejects those capabilities so copying a project actually confines database state
+    to the sandbox.
     """
     try:
         project = yaml.safe_load((source / "dbt_project.yml").read_text(encoding="utf-8")) or {}
@@ -72,18 +103,65 @@ def _validate_local_duckdb_profile(source: Path) -> None:
     except yaml.YAMLError as exc:
         raise SystemExit(f"could not parse project-local dbt YAML safely: {exc}") from exc
 
+    if not isinstance(project, dict) or not isinstance(profiles, dict):
+        raise SystemExit("dbt_project.yml and profiles.yml must contain YAML mappings")
+    for hook_name in ("on-run-start", "on-run-end"):
+        if project.get(hook_name):
+            raise SystemExit(
+                f"judge CLI rejects {hook_name} hooks because they can run side-effecting SQL outside model builds"
+            )
+
     profile_name = project.get("profile")
     if not isinstance(profile_name, str) or profile_name not in profiles:
         raise SystemExit("dbt_project.yml must name a profile present in the project-local profiles.yml")
     profile = profiles.get(profile_name) or {}
+    if not isinstance(profile, dict):
+        raise SystemExit("the selected dbt profile must be a YAML mapping")
     target_name = profile.get("target")
     outputs = profile.get("outputs") or {}
     target = outputs.get(target_name) if isinstance(outputs, dict) else None
-    adapter = target.get("type") if isinstance(target, dict) else None
+    if not isinstance(target_name, str) or not isinstance(target, dict):
+        raise SystemExit("the selected dbt profile target must exist under outputs")
+
+    adapter = target.get("type")
     if str(adapter).strip().lower() != "duckdb":
         raise SystemExit(
             "refusing non-DuckDB target: the judge CLI only runs disposable local DuckDB profiles"
         )
+
+    unexpected = sorted(set(target) - _ALLOWED_DUCKDB_TARGET_KEYS)
+    if unexpected:
+        raise SystemExit(
+            "refusing DuckDB target capabilities outside the local judge profile: "
+            + ", ".join(unexpected)
+        )
+
+    if "threads" in target:
+        threads = target["threads"]
+        if isinstance(threads, bool) or not isinstance(threads, int) or threads < 1:
+            raise SystemExit("DuckDB target threads must be a positive integer")
+    if "schema" in target and not isinstance(target["schema"], str):
+        raise SystemExit("DuckDB target schema must be a string")
+
+    if "path" not in target:
+        return  # dbt-duckdb defaults to an in-memory database.
+    raw_path = target.get("path")
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        raise SystemExit("DuckDB target path must be a non-empty string or be omitted for in-memory mode")
+    raw_path = raw_path.strip()
+    if raw_path == ":memory:":
+        return
+    if "{{" in raw_path or "{%" in raw_path:
+        raise SystemExit("DuckDB target path must not be generated from Jinja or environment variables")
+    if _REMOTE_PATH_RE.match(raw_path):
+        raise SystemExit("DuckDB target path must be a relative local file, not a URI or remote connection string")
+
+    candidate = Path(raw_path).expanduser()
+    if candidate.is_absolute():
+        raise SystemExit("DuckDB target path must be relative so the copied sandbox owns the database state")
+    resolved = (source / candidate).resolve()
+    if source.resolve() not in resolved.parents:
+        raise SystemExit("DuckDB target path must stay inside the project directory")
 
 
 def _prepare_sandbox(source: Path, sandbox: Path, force: bool) -> None:
@@ -133,6 +211,7 @@ def _diff(root: Path) -> str:
             "--",
             ".",
             ":(glob,exclude)**/*.duckdb",
+            ":(glob,exclude)**/*.duckdb.wal",
             ":(exclude)driftdoctor-report.json",
         ],
         cwd=root,
@@ -146,11 +225,11 @@ def _diff(root: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Run DriftDoctor against a disposable copy of a local dbt project and emit "
+            "Run DriftDoctor against a disposable copy of a trusted local dbt project and emit "
             "an approval-ready report. The source project is never modified."
         )
     )
-    parser.add_argument("--project", required=True, help="Path to the source dbt project")
+    parser.add_argument("--project", required=True, help="Path to the trusted source dbt project")
     incident = parser.add_mutually_exclusive_group(required=True)
     incident.add_argument("--incident", help="Incident description")
     incident.add_argument("--incident-file", help="Text file containing the incident description")
@@ -159,7 +238,7 @@ def main() -> int:
         help="Optional Markdown/text file containing documented business rules to copy into BUSINESS_CONTEXT.md",
     )
     parser.add_argument("--model", default="qwen2.5-coder:1.5b")
-    parser.add_argument("--max-calls", type=int, default=14)
+    parser.add_argument("--max-calls", type=int, default=1)
     parser.add_argument(
         "--no-fallback",
         action="store_true",
@@ -185,9 +264,12 @@ def main() -> int:
         raise SystemExit(
             "source project must contain a project-local profiles.yml; do not use production credentials"
         )
+    _validate_project_tree(source)
     _validate_local_duckdb_profile(source)
-    if not args.no_fallback and args.max_calls < 1:
-        raise SystemExit("--max-calls must be at least 1 when the ambiguity-resolver agent is enabled")
+    if not args.no_fallback and args.max_calls != 1:
+        raise SystemExit("--max-calls must be exactly 1 when the bounded ambiguity-resolver agent is enabled")
+    if args.no_fallback and args.max_calls < 0:
+        raise SystemExit("--max-calls must not be negative")
     if not args.model.strip():
         raise SystemExit("--model must not be empty")
 
@@ -218,7 +300,7 @@ def main() -> int:
             allow_fallback=not args.no_fallback,
         )
         infrastructure_error = None
-    except InferenceTransportError as exc:
+    except (InferenceTransportError, ValueError) as exc:
         result = None
         infrastructure_error = str(exc)
 
@@ -236,7 +318,7 @@ def main() -> int:
         execution_status = "build_failed"
 
     report = {
-        "report_version": "3.0",
+        "report_version": "3.1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "execution_status": execution_status,
         "workflow_mode": "skills_only" if args.no_fallback else "selective_agency",

@@ -9,14 +9,14 @@ from driftdoctor.ambiguity import find_ambiguous_missing_ref, resolve_ambiguous_
 
 
 class AmbiguityResolverTests(unittest.TestCase):
-    def _project(self) -> tuple[tempfile.TemporaryDirectory, Path]:
+    def _project(self, downstream_sql: str | None = None) -> tuple[tempfile.TemporaryDirectory, Path]:
         holder = tempfile.TemporaryDirectory()
         root = Path(holder.name)
         (root / "models").mkdir(parents=True)
         (root / "models" / "stg_shipments_v2.sql").write_text("select 1 as shipment_id\n", encoding="utf-8")
         (root / "models" / "stg_shipments_archive.sql").write_text("select 0 as shipment_id\n", encoding="utf-8")
         (root / "models" / "mart_shipments.sql").write_text(
-            "select * from {{ ref('stg_shipments') }}\n", encoding="utf-8"
+            downstream_sql or "select * from {{ ref('stg_shipments') }}\n", encoding="utf-8"
         )
         return holder, root
 
@@ -28,6 +28,17 @@ class AmbiguityResolverTests(unittest.TestCase):
         assert ambiguity is not None
         self.assertEqual(ambiguity["missing_ref"], "stg_shipments")
         self.assertEqual(ambiguity["candidates"], ["stg_shipments_archive", "stg_shipments_v2"])
+
+    def test_detector_handles_whitespace_and_repeated_same_ref_as_one_ambiguity(self) -> None:
+        holder, root = self._project(
+            "select * from {{ ref ( \"stg_shipments\" ) }}\n"
+            "union all select * from {{ ref('stg_shipments') }}\n"
+        )
+        with holder:
+            ambiguity = find_ambiguous_missing_ref(root)
+        self.assertIsNotNone(ambiguity)
+        assert ambiguity is not None
+        self.assertEqual(ambiguity["missing_ref"], "stg_shipments")
 
     def test_agent_selection_is_constrained_to_observed_candidate(self) -> None:
         holder, root = self._project()
@@ -53,6 +64,22 @@ class AmbiguityResolverTests(unittest.TestCase):
             set(schema["properties"]["selection"]["enum"]),
             {"stg_shipments_archive", "stg_shipments_v2", "abstain"},
         )
+
+    def test_agent_replaces_every_occurrence_without_reformatting_the_ref(self) -> None:
+        holder, root = self._project(
+            "select * from {{ ref ( \"stg_shipments\" ) }}\n"
+            "union all select * from {{ ref('stg_shipments') }}\n"
+        )
+        with holder, patch(
+            "driftdoctor.ambiguity._chat",
+            return_value={"selection": "stg_shipments_v2", "reason": "current", "evidence": []},
+        ):
+            result = resolve_ambiguous_missing_ref(root, "Broken ref", "v2 is current", "test-model")
+        self.assertTrue(result["handled"])
+        content = result["patch"]["files"][0]["content"]
+        self.assertEqual(content.count("stg_shipments_v2"), 2)
+        self.assertNotIn("stg_shipments\"", content)
+        self.assertNotIn("stg_shipments'", content)
 
     def test_agent_can_abstain_without_creating_patch(self) -> None:
         holder, root = self._project()

@@ -5,46 +5,69 @@ from pathlib import Path
 
 from driftdoctor.v2 import _chat
 
+_REF_RE = re.compile(r"ref\s*\(\s*(['\"])(?P<name>[^'\"]+)\1\s*\)")
 
-def _model_stems(root: Path) -> set[str]:
-    return {path.stem for path in (root / "models").glob("**/*.sql") if path.is_file()}
+
+def _model_paths(root: Path) -> dict[str, list[Path]]:
+    paths: dict[str, list[Path]] = {}
+    for path in (root / "models").glob("**/*.sql"):
+        if path.is_file():
+            paths.setdefault(path.stem, []).append(path)
+    return paths
+
+
+def _replace_ref_name(content: str, missing: str, selection: str) -> tuple[str, int]:
+    spans = [
+        match.span("name")
+        for match in _REF_RE.finditer(content)
+        if match.group("name") == missing
+    ]
+    replacement = content
+    for start, end in reversed(spans):
+        replacement = replacement[:start] + selection + replacement[end:]
+    return replacement, len(spans)
 
 
 def find_ambiguous_missing_ref(root: Path) -> dict | None:
     """Find one missing ref with multiple plausible observed replacement models.
 
     The function only proposes ambiguity from project structure. It does not choose
-    a repair and does not consult benchmark/evaluator code.
+    a repair and does not consult benchmark/evaluator code. Repeated occurrences of
+    the same missing ref in one file count as one logical ambiguity.
     """
     root = root.resolve()
-    stems = _model_stems(root)
-    ambiguities: list[dict] = []
+    model_paths = _model_paths(root)
+    stems = set(model_paths)
+    ambiguities: dict[tuple[str, str], dict] = {}
     for path in sorted((root / "models").glob("**/*.sql")):
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
-        for missing in re.findall(r"ref\(['\"]([^'\"]+)['\"]\)", text):
+        for match in _REF_RE.finditer(text):
+            missing = match.group("name")
             if missing in stems:
                 continue
             candidates = sorted(
                 stem
                 for stem in stems
-                if stem.startswith(missing + "_")
-                or stem.startswith(missing + "v")
-                or missing.startswith(stem + "_")
+                if len(model_paths[stem]) == 1
+                and (
+                    stem.startswith(missing + "_")
+                    or re.match(rf"^{re.escape(missing)}v\d", stem)
+                    or missing.startswith(stem + "_")
+                )
             )
             if 2 <= len(candidates) <= 8:
-                ambiguities.append(
-                    {
-                        "path": str(path.relative_to(root)),
-                        "missing_ref": missing,
-                        "candidates": candidates,
-                        "content": text,
-                    }
-                )
+                relative = str(path.relative_to(root))
+                ambiguities[(relative, missing)] = {
+                    "path": relative,
+                    "missing_ref": missing,
+                    "candidates": candidates,
+                    "content": text,
+                }
     if len(ambiguities) != 1:
         return None
-    return ambiguities[0]
+    return next(iter(ambiguities.values()))
 
 
 def resolve_ambiguous_missing_ref(
@@ -58,6 +81,7 @@ def resolve_ambiguous_missing_ref(
     The model can select only an existing candidate or abstain. File editing remains
     deterministic and is performed by the caller after this function returns.
     """
+    root = root.resolve()
     ambiguity = find_ambiguous_missing_ref(root)
     if ambiguity is None:
         return {"handled": False, "model_calls": 0, "reason": "no single bounded missing-ref ambiguity"}
@@ -73,11 +97,15 @@ def resolve_ambiguous_missing_ref(
         },
         "required": ["selection", "reason", "evidence"],
     }
+    model_paths = _model_paths(root)
     candidate_files = {}
     for stem in candidates:
-        path = next((p for p in (root / "models").glob("**/*.sql") if p.is_file() and p.stem == stem), None)
-        if path is not None:
-            candidate_files[str(path.relative_to(root))] = path.read_text(encoding="utf-8", errors="replace")[:5000]
+        paths = model_paths.get(stem, [])
+        if len(paths) == 1:
+            path = paths[0]
+            candidate_files[str(path.relative_to(root))] = path.read_text(
+                encoding="utf-8", errors="replace"
+            )[:5000]
 
     decision = _chat(
         model,
@@ -110,14 +138,20 @@ def resolve_ambiguous_missing_ref(
             "model_calls": 1,
             "ambiguity": ambiguity,
             "decision": decision,
-            "reason": "agent abstained",
+            "reason": "agent abstained or returned an invalid candidate",
         }
 
-    replacement = re.sub(
-        rf"ref\((['\"]){re.escape(ambiguity['missing_ref'])}\1\)",
-        f"ref('{selection}')",
-        ambiguity["content"],
+    replacement, replacements = _replace_ref_name(
+        ambiguity["content"], ambiguity["missing_ref"], selection
     )
+    if replacements == 0 or replacement == ambiguity["content"]:
+        return {
+            "handled": False,
+            "model_calls": 1,
+            "ambiguity": ambiguity,
+            "decision": decision,
+            "reason": "the bounded reference could not be replaced safely",
+        }
     return {
         "handled": True,
         "model_calls": 1,

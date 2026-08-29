@@ -105,10 +105,12 @@ def run_v4(
        fallback when the bounded workflow cannot verify a repair.
 
     Hidden benchmark oracle/reference-repair code is never consulted inside this workflow.
-    `max_model_calls` is retained for CLI/evaluation compatibility; the final bounded
-    agent currently uses at most one logical model call.
+    The bounded agent uses at most one logical model call and is disabled when
+    `max_model_calls` is zero.
     """
-    del max_model_calls
+    if max_model_calls < 0:
+        raise ValueError("max_model_calls must be non-negative")
+
     root = root.resolve()
     started = time.monotonic()
     context = _business_context(root)
@@ -163,7 +165,7 @@ def run_v4(
             }
         )
 
-    if not allow_fallback:
+    if not allow_fallback or max_model_calls == 0:
         return _result(
             model=model,
             started=started,
