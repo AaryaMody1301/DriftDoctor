@@ -13,6 +13,8 @@ def main() -> int:
     parser.add_argument("--system", required=True)
     parser.add_argument("--input-root", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--transport-timeout-seconds", type=int)
+    parser.add_argument("--execution-mode", default="distributed-case-matrix")
     args = parser.parse_args()
 
     root = Path(args.input_root)
@@ -79,6 +81,8 @@ def main() -> int:
         "system": args.system,
         "context_version": "0.2",
         "model": model,
+        "execution_mode": args.execution_mode,
+        "transport_timeout_seconds": args.transport_timeout_seconds,
         "expected_cases": len(CASE_IDS),
         "scored_cases": scored,
         "complete": complete,
