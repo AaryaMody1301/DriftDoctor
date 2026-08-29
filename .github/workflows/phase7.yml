@@ -1,11 +1,6 @@
 name: phase7-performance-recovery
 
 on:
-  pull_request:
-    paths:
-      - "driftdoctor/v3.py"
-      - "scripts/run_phase7.py"
-      - ".github/workflows/phase7.yml"
   workflow_dispatch:
 
 permissions:
