@@ -1,0 +1,138 @@
+name: evidence-freeze
+
+on:
+  push:
+    branches:
+      - submission-finalization
+    paths:
+      - ".github/workflows/evidence-freeze.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: submission-finalization
+      - name: Download fixed Phase 5 artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dd-evidence
+          fetch_artifact() {
+            local id="$1"
+            local out="$2"
+            curl -fsSL \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${REPO}/actions/artifacts/${id}/zip" \
+              -o "${out}"
+          }
+          fetch_artifact 9710042859 /tmp/dd-evidence/context-baseline.zip
+          fetch_artifact 9710336456 /tmp/dd-evidence/no-review.zip
+          fetch_artifact 9713697697 /tmp/dd-evidence/review-a.zip
+          fetch_artifact 9714016734 /tmp/dd-evidence/review-b.zip
+          fetch_artifact 9712803751 /tmp/dd-evidence/review-c.zip
+          fetch_artifact 9714018483 /tmp/dd-evidence/review-aggregate.zip
+      - name: Preserve raw evidence and provenance
+        run: |
+          set -euo pipefail
+          rm -rf evidence/phase5
+          mkdir -p \
+            evidence/phase5/context-baseline \
+            evidence/phase5/driftdoctor-no-review \
+            evidence/phase5/driftdoctor-review-incomplete
+
+          unzip -q /tmp/dd-evidence/context-baseline.zip -d evidence/phase5/context-baseline
+          unzip -q /tmp/dd-evidence/no-review.zip -d evidence/phase5/driftdoctor-no-review
+          unzip -q /tmp/dd-evidence/review-a.zip -d /tmp/review-a
+          unzip -q /tmp/dd-evidence/review-b.zip -d /tmp/review-b
+          unzip -q /tmp/dd-evidence/review-c.zip -d /tmp/review-c
+          unzip -q /tmp/dd-evidence/review-aggregate.zip -d /tmp/review-aggregate
+          cp /tmp/review-a/DD-*.json evidence/phase5/driftdoctor-review-incomplete/ || true
+          cp /tmp/review-b/DD-*.json evidence/phase5/driftdoctor-review-incomplete/ || true
+          cp /tmp/review-c/DD-*.json evidence/phase5/driftdoctor-review-incomplete/ || true
+          cp /tmp/review-aggregate/summary.json evidence/phase5/driftdoctor-review-incomplete/summary.json
+
+          cat > evidence/phase5/manifest.json <<'JSON'
+          {
+            "evidence_version": "1.0",
+            "selected_system": "driftdoctor-no-review",
+            "selection_reason": "Highest publishable matched-context VRR among complete Phase 5 DriftDoctor arms. Semantic-review recovery remained incomplete and is excluded from VRR claims.",
+            "matched_context_run": {
+              "run_id": 33236007203,
+              "head_sha": "a135e543b6feb15a6003a73aabfdc54b5f37d256",
+              "context_baseline_artifact": {
+                "artifact_id": 9710042859,
+                "digest": "sha256:a06ca03f1aee528452330d2623a223bd9af59b9a9954cc030113572fa62582ba"
+              },
+              "driftdoctor_no_review_artifact": {
+                "artifact_id": 9710336456,
+                "digest": "sha256:78460ce0c8faf27dea867e7d28d98cd33fbe67ae165aaf273dacf2778754f579"
+              }
+            },
+            "semantic_review_recovery": {
+              "run_id": 33245124108,
+              "head_sha": "c0446945f17ffeef1bace8cd6a98646ba0db6b50",
+              "aggregate_artifact_id": 9714018483,
+              "aggregate_digest": "sha256:13944df04ae102035734cbc7d5377ab9cb649120528af30c7fa792ac240f5991",
+              "complete": false,
+              "scored_cases": 7,
+              "expected_cases": 12
+            }
+          }
+          JSON
+
+          cat > evidence/phase5/README.md <<'MD'
+          # Phase 5 checked-in evidence
+
+          This directory preserves the raw Phase 5 evidence used for the final submission so judges are not dependent on retention-limited CI artifacts.
+
+          ## Publishable matched-context comparison
+
+          | System | Complete | Scored | VRR | Root-cause accuracy | Mean model calls | Mean elapsed |
+          |---|---:|---:|---:|---:|---:|---:|
+          | `context-baseline` | yes | 12/12 | 0/12 (0.00%) | 0/12 (0.00%) | 11.75 | 39.15s |
+          | `driftdoctor-no-review` | yes | 12/12 | 1/12 (8.33%) | 3/12 (25.00%) | 2.58 | 185.21s |
+
+          The strict matched-context improvement is **+1 verified incident / +8.33 percentage points VRR**. The absolute result remains modest; this is a measured workflow improvement, not a broad product-reliability claim.
+
+          ## Removed semantic-review experiment
+
+          `driftdoctor-review-incomplete/` preserves the failed recovery experiment. Its aggregate contains 7 scored cases. DD-002, DD-004, DD-005, and DD-007 ended in local-inference transport timeouts; DD-008 produced no case record. The aggregate correctly sets `complete=false` and `verified_resolution_rate=null`, so it is not used in the performance comparison.
+
+          Every complete case JSON includes observable trajectory/tool/model outputs, diff, external oracle result, model calls, and timing. No private chain-of-thought is required or included.
+          MD
+
+          test "$(find evidence/phase5/context-baseline -name 'DD-*.json' | wc -l)" -eq 12
+          test "$(find evidence/phase5/driftdoctor-no-review -name 'DD-*.json' | wc -l)" -eq 12
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for system in ("context-baseline", "driftdoctor-no-review"):
+              data = json.loads(Path(f"evidence/phase5/{system}/summary.json").read_text())
+              assert data["complete"] is True
+              assert data["scored_cases"] == 12
+              assert data["infrastructure_errors"] == []
+          review = json.loads(Path("evidence/phase5/driftdoctor-review-incomplete/summary.json").read_text())
+          assert review["complete"] is False
+          assert review["verified_resolution_rate"] is None
+          print("evidence validation passed")
+          PY
+      - name: Commit evidence and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          git config user.name "DriftDoctor Evidence Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/evidence-freeze.yml
+          git add evidence/phase5
+          git commit -m "submission: preserve final Phase 5 evidence"
+          git push origin HEAD:submission-finalization
