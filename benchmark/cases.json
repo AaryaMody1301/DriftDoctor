@@ -1,0 +1,205 @@
+{
+  "benchmark_version": "0.1.0",
+  "project": "DriftDoctor",
+  "primary_metric": "verified_resolution_rate",
+  "environment": {
+    "warehouse": "duckdb",
+    "data_policy": "synthetic_only",
+    "network_required_for_case_execution": false
+  },
+  "cases": [
+    {
+      "id": "DD-001",
+      "title": "Upstream source column renamed",
+      "category": "schema_drift",
+      "difficulty": "easy",
+      "challenge_case": false,
+      "incident": "The customer revenue pipeline started failing after an upstream schema change. Diagnose the failure and restore the project without changing the intended output contract.",
+      "root_cause_class": "source_column_renamed",
+      "fault": "A source field consumed by a staging model was renamed upstream while downstream SQL still references the old name.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "all pre-existing data tests pass",
+        "final model exposes the original downstream output contract",
+        "regression assertion for the renamed source field passes"
+      ]
+    },
+    {
+      "id": "DD-002",
+      "title": "Required source column removed",
+      "category": "schema_drift",
+      "difficulty": "medium",
+      "challenge_case": false,
+      "incident": "A daily customer model no longer builds after an upstream contract update. Find the root cause and make the smallest safe repair while preserving the model's documented business meaning.",
+      "root_cause_class": "source_column_removed",
+      "fault": "A previously available source column was removed and the transformation must derive or safely replace the required downstream value from remaining approved fields.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "all unaffected tests remain green",
+        "business invariant for the derived output passes",
+        "removed source field is no longer referenced"
+      ]
+    },
+    {
+      "id": "DD-003",
+      "title": "Numeric field changed to text",
+      "category": "type_drift",
+      "difficulty": "medium",
+      "challenge_case": false,
+      "incident": "A revenue transformation now fails on new source records. Investigate the type mismatch and repair the model without silently accepting invalid values.",
+      "root_cause_class": "source_type_changed",
+      "fault": "An upstream numeric field is now delivered as text and includes at least one value that requires explicit safe handling.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "valid numeric text produces the expected numeric result",
+        "invalid numeric text follows the benchmark's explicit handling rule",
+        "all unrelated output rows remain unchanged"
+      ]
+    },
+    {
+      "id": "DD-004",
+      "title": "Referenced dbt model renamed",
+      "category": "dependency_drift",
+      "difficulty": "easy",
+      "challenge_case": false,
+      "incident": "A downstream mart stopped compiling after a project refactor. Restore the dependency correctly and keep the public mart contract unchanged.",
+      "root_cause_class": "model_ref_renamed",
+      "fault": "An upstream dbt model was renamed but a downstream ref() still uses the previous model name.",
+      "oracle_checks": [
+        "dbt parse succeeds",
+        "targeted dbt build succeeds",
+        "downstream mart schema is unchanged",
+        "no stale ref to the old model name remains"
+      ]
+    },
+    {
+      "id": "DD-005",
+      "title": "Join cardinality creates duplicate facts",
+      "category": "semantic_regression",
+      "difficulty": "hard",
+      "challenge_case": false,
+      "incident": "The pipeline builds, but a finance mart began overstating revenue after a dimension update. Find the cause and restore the intended fact grain.",
+      "root_cause_class": "join_cardinality_regression",
+      "fault": "A one-to-many dimension join duplicates fact rows because the dimension is no longer unique at the join key.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "fact primary-grain uniqueness assertion passes",
+        "total revenue matches the frozen expected total",
+        "dimension change does not cause duplicated fact rows"
+      ]
+    },
+    {
+      "id": "DD-006",
+      "title": "Nullability regression in required identifier",
+      "category": "data_quality_drift",
+      "difficulty": "medium",
+      "challenge_case": false,
+      "incident": "A previously reliable customer model now fails a data-quality check because required identifiers are becoming null. Diagnose whether the defect is in source handling or downstream logic and repair it safely.",
+      "root_cause_class": "nullability_regression",
+      "fault": "A transformation path introduces nulls into a field whose downstream contract requires non-null identifiers.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "not-null invariant passes for the required identifier",
+        "row-count invariant remains within the frozen case expectation",
+        "repair does not invent identifiers for rows that should be rejected"
+      ]
+    },
+    {
+      "id": "DD-007",
+      "title": "New categorical value breaks business mapping",
+      "category": "contract_drift",
+      "difficulty": "medium",
+      "challenge_case": false,
+      "incident": "A source system introduced a new status value. The project either rejects it or maps it incorrectly. Update the transformation so the new value is handled explicitly without weakening existing validation.",
+      "root_cause_class": "accepted_value_drift",
+      "fault": "A new approved source category is absent from the transformation mapping and validation contract.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "new category maps to the frozen expected business category",
+        "previous category mappings remain unchanged",
+        "accepted-values validation remains explicit rather than being removed"
+      ]
+    },
+    {
+      "id": "DD-008",
+      "title": "Macro interface changed",
+      "category": "dependency_drift",
+      "difficulty": "medium",
+      "challenge_case": false,
+      "incident": "Several models fail after a shared macro refactor. Repair the affected call site while preserving the macro's new interface and existing model behavior.",
+      "root_cause_class": "macro_signature_changed",
+      "fault": "A shared macro changed a required argument name/signature while at least one model still invokes the previous interface.",
+      "oracle_checks": [
+        "dbt parse succeeds",
+        "targeted dbt build succeeds",
+        "macro call uses the current interface",
+        "expected model rows match the frozen fixture"
+      ]
+    },
+    {
+      "id": "DD-009",
+      "title": "Model grain changed after deduplication removal",
+      "category": "semantic_regression",
+      "difficulty": "hard",
+      "challenge_case": false,
+      "incident": "A customer snapshot-like model now emits multiple current records per customer even though all dbt models compile. Restore the documented one-row-per-customer contract.",
+      "root_cause_class": "grain_regression",
+      "fault": "A refactor removed or misplaced deterministic deduplication, changing the model grain without causing a SQL error.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "customer key uniqueness invariant passes",
+        "chosen current record matches the frozen recency rule",
+        "row content for unaffected customers remains unchanged"
+      ]
+    },
+    {
+      "id": "DD-010",
+      "title": "Timestamp timezone semantics changed",
+      "category": "semantic_regression",
+      "difficulty": "hard",
+      "challenge_case": false,
+      "incident": "Daily metrics shifted across date boundaries after timestamp handling changed upstream. Fix the transformation so reporting dates follow the documented timezone rule.",
+      "root_cause_class": "timezone_semantics_changed",
+      "fault": "A timestamp is interpreted in the wrong timezone, moving boundary records into the wrong reporting day.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "boundary timestamp fixtures map to the expected reporting dates",
+        "non-boundary timestamps remain unchanged",
+        "daily aggregate totals match frozen expectations"
+      ]
+    },
+    {
+      "id": "DD-011",
+      "title": "Silent revenue sign regression",
+      "category": "business_logic_drift",
+      "difficulty": "hard",
+      "challenge_case": false,
+      "incident": "The project is green, but refund handling changed and net revenue is now wrong. Locate the semantic defect and restore the documented accounting rule.",
+      "root_cause_class": "business_rule_regression",
+      "fault": "A SQL refactor applies the wrong sign to refunds, producing plausible but incorrect net revenue while structural tests still pass.",
+      "oracle_checks": [
+        "targeted dbt build succeeds",
+        "net revenue matches the frozen business-rule assertion",
+        "gross sales and refund components match expected values",
+        "existing structural tests remain green"
+      ]
+    },
+    {
+      "id": "DD-012",
+      "title": "Multi-fault schema and type drift",
+      "category": "multi_fault",
+      "difficulty": "challenge",
+      "challenge_case": true,
+      "incident": "A customer revenue mart fails after an upstream migration. More than one independent upstream change is present. Diagnose all causal faults and restore the mart without masking invalid source data.",
+      "root_cause_class": "multi_fault_schema_and_type_drift",
+      "fault": "The fixture combines a renamed source field with an independent type change on a second field; fixing only the first visible error is insufficient.",
+      "oracle_checks": [
+        "full case dbt build succeeds",
+        "renamed field is handled without changing the downstream contract",
+        "type-changed field follows the frozen safe-conversion rule",
+        "invalid source value is handled explicitly",
+        "all unaffected tests and business invariants remain green"
+      ]
+    }
+  ]
+}

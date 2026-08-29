@@ -1,0 +1,23 @@
+# Improvement Changelog
+
+This file is the evidence-linked evolution log required for the hackathon submission. Results are deliberately left blank until they are measured on the fixed benchmark.
+
+| Stage | What we tried and why | Evidence | Decision / learning |
+|---|---|---|---|
+| Baseline definition | Freeze one general-purpose coding-agent prompt before implementing DriftDoctor so the comparison cannot be retrofitted to favor the final workflow. | `baseline/PROMPT.md`; benchmark protocol defined before any scored run. Baseline VRR: **not run yet**. | Keep prompt frozen for v0.1 and run all 12 cases in Phase 3. |
+| Iteration 1 — evaluation-first foundation | Define the primary metric, 12 incidents, deterministic oracle requirements, fairness rules, and one challenging multi-fault case before agent implementation. | `docs/EVALUATION.md`, `benchmark/cases.json`, `scripts/validate_benchmark.py`. Agent VRR: **not run yet**. | Keep. It prevents moving the goalposts and makes every later change measurable. |
+| Iteration 2 | Not started. | Not measured. | Pending Phase 4/5 experiment. |
+| Iteration 3 | Not started. | Not measured. | Pending Phase 4/5 experiment. |
+| Final | Not started. | Not measured. | Pending final evaluation. |
+
+## Candidate experiments to test, not assumed improvements
+
+These are hypotheses for later phases. They must not be described as improvements until benchmark evidence supports them.
+
+1. Structured evidence collection from dbt logs/artifacts vs. free-form repository exploration.
+2. Lineage-aware context selection vs. broad context loading.
+3. External deterministic verification vs. agent self-assessment.
+4. Verification-triggered retry with failure feedback vs. one-shot completion.
+5. Single repair agent with strong tools vs. extra agent orchestration.
+
+At least one experiment that fails to help, or makes performance worse, should remain in this changelog because the hackathon brief explicitly values what was learned from removed experiments.
