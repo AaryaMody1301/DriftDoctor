@@ -79,11 +79,10 @@ No failed case may be manually repaired and then counted as an agent success.
 
 ## 6. Oracle design
 
-Each case defines deterministic `oracle_checks`. During Phase 2 those checks will be implemented as a combination of:
+Each case defines deterministic `oracle_checks`. The executable benchmark implements those checks as a combination of:
 
 - expected `dbt build`/targeted dbt command success;
 - dbt data tests;
-- dbt unit tests where model logic can be isolated with static fixtures;
 - custom SQL assertions against DuckDB for business invariants;
 - file/configuration assertions where the exact project structure matters.
 
@@ -125,6 +124,4 @@ Phase 1 is complete when:
 - [x] a challenging case is defined;
 - [x] every case has deterministic oracle requirements;
 - [x] benchmark schema can be validated without third-party packages;
-- [ ] Phase 2 has implemented every fixture and oracle executable.
-
-The unchecked item belongs to Phase 2.
+- [x] Phase 2 has implemented every fixture and oracle executable.

@@ -2,7 +2,7 @@
 
 DriftDoctor is an evidence-first agentic workflow for diagnosing and repairing dbt pipeline regressions caused by schema, contract, and semantic drift.
 
-> **Hackathon status:** Phase 2 - executable synthetic benchmark complete. The 12-case benchmark and external evaluator are green in CI; no baseline or DriftDoctor performance claim has been made yet.
+> **Hackathon status:** Phases 1-4 are complete and preserved, Phase 5 controlled experiments are running on context v0.2, and Phase 6 submission hardening has started. The benchmark remains 12 frozen cases with an external deterministic oracle. Final Phase 5 winner/VRR claims remain gated on every comparison arm completing without infrastructure errors.
 
 ## The user and bottleneck
 
@@ -22,7 +22,7 @@ incident
   -> produce an approval-ready evidence report
 ```
 
-The workflow will never merge or deploy a repair automatically. Benchmark actions stay inside synthetic local dbt projects backed by DuckDB.
+The workflow never merges or deploys a repair automatically. Benchmark actions stay inside synthetic local dbt projects backed by DuckDB.
 
 ## What success means
 
@@ -34,7 +34,17 @@ VRR = verified solved incidents / total benchmark incidents
 
 An incident counts as solved only when all case-specific oracle checks pass. A convincing explanation or a green compile alone is not enough.
 
-## Phase 2 quickstart
+## Current measured evidence
+
+The corrected context-v0.2 experiment is intentionally reported only when an arm completes all 12 cases with zero infrastructure errors.
+
+- `context-baseline`: completed all 12 cases; final comparison report will be frozen with the full Phase 5 result set.
+- `driftdoctor-no-review`: completed all 12 cases with **1/12 verified resolutions (8.33% VRR)** and **3/12 root-cause classifications correct**, with zero infrastructure errors.
+- `driftdoctor-review`: measurement is still in progress; no final winner is claimed yet.
+
+These are experiment results for the pinned local `qwen2.5-coder:1.5b` configuration, not general product reliability claims.
+
+## Quickstart
 
 ```bash
 python -m pip install -r requirements.txt
@@ -54,13 +64,23 @@ Grade it externally after a repair attempt:
 python scripts/evaluate_case.py DD-005 --workdir .work/DD-005
 ```
 
+Run one Phase 5 comparison arm with local Ollama:
+
+```bash
+python scripts/run_phase5.py --system driftdoctor-no-review --model qwen2.5-coder:1.5b --max-calls 14
+```
+
 The benchmark contains 12 frozen incidents spanning schema drift, type drift, dependency changes, join/grain regressions, data-quality drift, macro interface drift, timezone semantics, business logic, and a multi-fault challenge case.
 
 See:
 
+- [`REPRODUCE.md`](REPRODUCE.md) - clean-environment reproduction and evidence guide
 - [`docs/PROBLEM.md`](docs/PROBLEM.md) - problem, users, scope, safety boundaries
 - [`docs/EVALUATION.md`](docs/EVALUATION.md) - frozen evaluation protocol and fairness rules
 - [`docs/PHASE_2.md`](docs/PHASE_2.md) - executable benchmark architecture and exit criteria
+- [`docs/PHASE_4_RESULT.md`](docs/PHASE_4_RESULT.md) - preserved failed workflow experiment
+- [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) - judge-facing deliverable/rubric audit
+- [`docs/VIDEO_PLAN.md`](docs/VIDEO_PLAN.md) - evidence-first <=5 minute demo plan
 - [`benchmark/cases.json`](benchmark/cases.json) - machine-readable benchmark contract
 - [`benchmark/README.md`](benchmark/README.md) - materialization, oracle, and integrity rules
 - [`baseline/PROMPT.md`](baseline/PROMPT.md) - frozen simple-agent baseline
@@ -70,10 +90,10 @@ See:
 
 1. **Evaluation foundation** - lock problem, baseline, metric, cases, oracle rules. **Complete.**
 2. **Synthetic benchmark** - implement the 12 dbt + DuckDB incident fixtures and evaluator. **Complete.**
-3. **Baseline measurement** - run the frozen baseline and preserve every trajectory/result.
-4. **DriftDoctor workflow** - evidence collection, diagnosis, patch generation, and deterministic verification.
-5. **Experiments** - measure each meaningful workflow change against the same cases.
-6. **Submission hardening** - clean-environment reproduction, UI/CLI polish, trajectories, report, and demo.
+3. **Baseline measurement** - run the frozen baseline and preserve trajectories/results. **Complete.**
+4. **DriftDoctor workflow** - implement and measure the first evidence/repair loop; preserve the negative result. **Complete.**
+5. **Controlled experiments** - compare context baseline, no-review, and semantic-review workflows under context v0.2. **Measurement in progress.**
+6. **Submission hardening** - clean-environment reproduction, evidence packaging, safety documentation, report, and demo. **In progress.**
 
 ## Current non-goals
 
