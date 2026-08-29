@@ -4,19 +4,7 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    paths:
-      - "README.md"
-      - "REPRODUCE.md"
-      - "IMPROVEMENT_CHANGELOG.md"
-      - "docs/**"
-      - "benchmark/cases.json"
-      - "benchmark/results/phase5/**"
-      - "scripts/submission_preflight.py"
-      - "scripts/run_incident.py"
-      - "scripts/run_phase5.py"
-      - "scripts/aggregate_phase5.py"
-      - ".github/workflows/submission.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
