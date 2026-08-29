@@ -40,6 +40,7 @@ REQUIRED_FILES = [
     "evidence/phase8/README.md",
     "evidence/phase8/manifest.json",
     "evidence/phase8/skills-only/summary.json",
+    "evidence/phase8/hybrid/summary.json",
 ]
 
 EXPENSIVE_MANUAL_WORKFLOWS = [
@@ -48,6 +49,7 @@ EXPENSIVE_MANUAL_WORKFLOWS = [
     ".github/workflows/phase5.yml",
     ".github/workflows/phase5-review-recovery.yml",
     ".github/workflows/phase7.yml",
+    ".github/workflows/phase8.yml",
 ]
 ACTION_REF_RE = re.compile(r"uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -60,6 +62,50 @@ def fail(message: str, failures: list[str]) -> None:
 
 def _load(path: Path) -> dict:
     return json.loads(path.read_text())
+
+
+def _audit_complete_result(
+    root: Path,
+    expected_system: str,
+    failures: list[str],
+    *,
+    require_no_fallback: bool,
+) -> dict | None:
+    summary_path = root / "summary.json"
+    if not summary_path.is_file():
+        fail(f"missing Phase 8 summary: {summary_path.relative_to(ROOT)}", failures)
+        return None
+    data = _load(summary_path)
+    case_files = sorted(root.glob("DD-*.json"))
+    if len(case_files) != 12:
+        fail(f"{root.name} must preserve 12 raw cases, found {len(case_files)}", failures)
+    if data.get("system") != expected_system:
+        fail(f"{root.name} system changed", failures)
+    if data.get("complete") is not True:
+        fail(f"{root.name} result must be complete", failures)
+    if data.get("expected_cases") != 12 or data.get("scored_cases") != 12:
+        fail(f"{root.name} must score exactly 12/12 cases", failures)
+    if data.get("infrastructure_errors"):
+        fail(f"{root.name} contains infrastructure errors", failures)
+    if data.get("solved") != 12 or data.get("verified_resolution_rate") != 1.0:
+        fail(f"{root.name} VRR must remain 12/12 (1.0)", failures)
+    if data.get("root_cause_correct") != 12 or data.get("root_cause_accuracy") != 1.0:
+        fail(f"{root.name} root-cause accuracy must remain 12/12", failures)
+    if float(data.get("mean_model_calls", -1)) != 0.0:
+        fail(f"{root.name} must preserve zero model calls", failures)
+    if require_no_fallback and data.get("fallback_cases") != 0:
+        fail(f"{root.name} must preserve zero fallback cases", failures)
+    for path in case_files:
+        case = _load(path)
+        if case.get("status") != "scored" or case.get("passed") is not True:
+            fail(f"Phase 8 case is not a verified pass: {path}", failures)
+        if case.get("root_cause_correct") is not True:
+            fail(f"Phase 8 root-cause result changed: {path}", failures)
+        if case.get("model_calls") != 0:
+            fail(f"Phase 8 case unexpectedly used model calls: {path}", failures)
+        if require_no_fallback and case.get("fallback_used") is not False:
+            fail(f"Phase 8 hybrid case unexpectedly used fallback: {path}", failures)
+    return data
 
 
 def main() -> int:
@@ -79,8 +125,8 @@ def main() -> int:
         if len(cases) != 12:
             fail(f"benchmark must contain 12 cases, found {len(cases)}", failures)
         challenge = [case for case in cases if case.get("challenge_case")]
-        if len(challenge) != 1:
-            fail(f"expected exactly one challenge case, found {len(challenge)}", failures)
+        if len(challenge) != 1 or challenge[0].get("id") != "DD-012":
+            fail("expected exactly one challenge case, DD-012", failures)
         if not all(case.get("oracle_checks") for case in cases):
             fail("every case must declare oracle checks", failures)
 
@@ -118,56 +164,49 @@ def main() -> int:
 
     print("\nFinal Phase 8 evidence audit")
     phase8 = ROOT / "evidence" / "phase8"
-    final_root = phase8 / "skills-only"
-    final_summary_path = final_root / "summary.json"
-    if not final_summary_path.is_file():
-        fail("missing Phase 8 final summary", failures)
-    else:
-        final = _load(final_summary_path)
-        case_files = sorted(final_root.glob("DD-*.json"))
-        if len(case_files) != 12:
-            fail(f"Phase 8 must preserve 12 raw case records, found {len(case_files)}", failures)
-        if final.get("complete") is not True:
-            fail("Phase 8 result must be complete", failures)
-        if final.get("expected_cases") != 12 or final.get("scored_cases") != 12:
-            fail("Phase 8 must score exactly 12/12 cases", failures)
-        if final.get("infrastructure_errors"):
-            fail("Phase 8 evidence contains infrastructure errors", failures)
-        if final.get("solved") != 12 or final.get("verified_resolution_rate") != 1.0:
-            fail("Phase 8 frozen VRR must remain 12/12 (1.0)", failures)
-        if final.get("root_cause_correct") != 12 or final.get("root_cause_accuracy") != 1.0:
-            fail("Phase 8 frozen root-cause accuracy must remain 12/12", failures)
-        if float(final.get("mean_model_calls", -1)) != 0.0:
-            fail("Phase 8 frozen skills-only run must preserve zero model calls", failures)
-        for path in case_files:
-            data = _load(path)
-            if data.get("status") != "scored" or data.get("passed") is not True:
-                fail(f"Phase 8 case is not a verified pass: {path.name}", failures)
-            if data.get("root_cause_correct") is not True:
-                fail(f"Phase 8 root-cause result changed: {path.name}", failures)
-            if data.get("model_calls") != 0:
-                fail(f"Phase 8 skills-only case unexpectedly used model calls: {path.name}", failures)
+    _audit_complete_result(
+        phase8 / "skills-only",
+        "driftdoctor-v4-skills-only",
+        failures,
+        require_no_fallback=True,
+    )
+    hybrid = _audit_complete_result(
+        phase8 / "hybrid",
+        "driftdoctor-v4-hybrid",
+        failures,
+        require_no_fallback=True,
+    )
+    if hybrid is not None and abs(float(hybrid.get("mean_elapsed_seconds", -1)) - 6.9895) > 1e-12:
+        fail("final hybrid mean elapsed time changed", failures)
 
     manifest_path = phase8 / "manifest.json"
     if manifest_path.is_file():
         manifest = _load(manifest_path)
         expected_manifest = {
-            "artifact_id": 9715977028,
-            "workflow_run_id": 33256430999,
-            "evaluation_head_sha": "b0dbe1faddb0979f26421a8976e62780034dc067",
-            "selected_system": "driftdoctor-v4-skills-only",
+            "workflow_run_id": 33257030328,
+            "evaluation_head_sha": "0c6cf9b42863db4f45a94add11509988bcaa7815",
+            "selected_system": "driftdoctor-v4-hybrid",
             "expected_cases": 12,
             "scored_cases": 12,
             "verified_resolution_rate": 1.0,
             "root_cause_accuracy": 1.0,
+            "fallback_cases": 0,
             "mean_model_calls": 0.0,
+            "mean_elapsed_seconds": 6.9895,
         }
         for key, value in expected_manifest.items():
             if manifest.get(key) != value:
                 fail(f"Phase 8 manifest field changed: {key}", failures)
-        digest = str(manifest.get("artifact_digest", ""))
-        if digest != "sha256:e97831f48b273f02ea280ba9ded5ddbbef0169f6201f7748f4dd0c7cf82b0f32":
-            fail("Phase 8 artifact digest changed", failures)
+        hybrid_meta = manifest.get("hybrid_final") or {}
+        if hybrid_meta.get("artifact_id") != 9716167394:
+            fail("final hybrid artifact ID changed", failures)
+        if hybrid_meta.get("artifact_digest") != "sha256:b6788eb6ed860c339daf3c822639bfde9e759457c7ac9b7825d9a5e6da3ee030":
+            fail("final hybrid artifact digest changed", failures)
+        skills_meta = manifest.get("skills_only_ablation") or {}
+        if skills_meta.get("artifact_id") != 9716167164:
+            fail("skills-only artifact ID changed", failures)
+        if skills_meta.get("artifact_digest") != "sha256:404a8d60b1134ed78072421e5710ea1c0e8f19a4d15b4779e61f9c422201c030":
+            fail("skills-only artifact digest changed", failures)
     else:
         fail("Phase 8 evidence manifest is missing", failures)
 
@@ -223,19 +262,24 @@ def main() -> int:
     for phrase in forbidden_claims:
         if phrase.lower() in readme.lower():
             fail(f"README contains stale/unsupported claim: {phrase!r}", failures)
-    if "12/12" not in readme or "100% VRR" not in readme:
-        fail("README must contain the frozen Phase 8 primary result", failures)
-    if "0 model calls" not in readme.lower():
-        fail("README must disclose that the primary skills-only evaluation used zero model calls", failures)
-    if "fallback" not in readme.lower():
-        fail("README must explain the bounded model fallback for unresolved cases", failures)
-    if "not" not in readme.lower() or "open-ended" not in readme.lower():
-        fail("README must scope the 12/12 result and avoid implying open-ended generalization", failures)
+    required_claim_phrases = [
+        "12/12",
+        "100% VRR",
+        "0 model calls",
+        "hybrid",
+        "fallback",
+        "not an open-ended claim",
+        "33257030328",
+        "0c6cf9b42863db4f45a94add11509988bcaa7815",
+    ]
+    for phrase in required_claim_phrases:
+        if phrase.lower() not in readme.lower():
+            fail(f"README missing final scoped claim/provenance: {phrase!r}", failures)
 
     if failures:
         print(f"\nSubmission preflight failed with {len(failures)} issue(s).")
         return 1
-    print("\nSubmission preflight passed: Phase 8 evidence, anti-leakage gates, claims, workflow pins, and benchmark invariants are consistent.")
+    print("\nSubmission preflight passed: final hybrid evidence, anti-leakage gates, claims, workflow pins, and benchmark invariants are consistent.")
     return 0
 
 
