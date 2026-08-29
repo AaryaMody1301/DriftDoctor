@@ -1,42 +1,38 @@
-name: phase5-review-recovery
+name: phase5-review-fast
 
 on:
   pull_request:
     paths:
-      - "driftdoctor/v2.py"
-      - "scripts/run_phase5.py"
-      - "scripts/aggregate_phase5.py"
       - ".github/workflows/phase5-review-recovery.yml"
-      - "requirements.txt"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: phase5-review-final-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
   OLLAMA_RESPONSE_TIMEOUT_SECONDS: "1200"
+  OLLAMA_KEEP_ALIVE: "-1"
 
 jobs:
-  review-case:
+  review-shard:
     strategy:
       fail-fast: false
+      max-parallel: 3
       matrix:
-        case:
-          - DD-001
-          - DD-002
-          - DD-003
-          - DD-004
-          - DD-005
-          - DD-006
-          - DD-007
-          - DD-008
-          - DD-009
-          - DD-010
-          - DD-011
-          - DD-012
+        include:
+          - shard: a
+            cases: "DD-001 DD-002 DD-003 DD-004"
+          - shard: b
+            cases: "DD-005 DD-006 DD-007 DD-008"
+          - shard: c
+            cases: "DD-009 DD-010 DD-011 DD-012"
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -56,39 +52,60 @@ jobs:
           done
           cat /tmp/ollama.log
           exit 1
-      - name: Pull shared model
-        run: ollama pull qwen2.5-coder:1.5b
+      - name: Pull and preload shared model once per shard
+        run: |
+          ollama pull qwen2.5-coder:1.5b
+          ollama run qwen2.5-coder:1.5b ""
       - name: Validate frozen benchmark contract
         run: python scripts/validate_benchmark.py
-      - name: Run semantic-review case
-        run: >-
-          python scripts/run_phase5.py
-          --system driftdoctor-review
-          --model qwen2.5-coder:1.5b
-          --max-calls 14
-          --case ${{ matrix.case }}
-      - name: Upload raw case evidence
+      - name: Run four semantic-review cases on warm model
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p benchmark/results/phase5/review-shard
+          status=0
+          for case_id in ${{ matrix.cases }}; do
+            echo "=== ${case_id} ==="
+            if python scripts/run_phase5.py \
+              --system driftdoctor-review \
+              --model qwen2.5-coder:1.5b \
+              --max-calls 14 \
+              --case "${case_id}"; then
+              :
+            else
+              status=1
+            fi
+            if [ -f "benchmark/results/phase5/driftdoctor-review/${case_id}.json" ]; then
+              cp "benchmark/results/phase5/driftdoctor-review/${case_id}.json" \
+                "benchmark/results/phase5/review-shard/${case_id}.json"
+            else
+              status=1
+            fi
+          done
+          exit "${status}"
+      - name: Upload shard evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: phase5-review-case-${{ matrix.case }}
-          path: benchmark/results/phase5/driftdoctor-review/${{ matrix.case }}.json
+          name: phase5-review-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: benchmark/results/phase5/review-shard/DD-*.json
           if-no-files-found: error
           retention-days: 30
 
   aggregate-review:
     if: always()
-    needs: review-case
+    needs: review-shard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - name: Download all review case artifacts
+      - name: Download all shard artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: phase5-review-case-*
+          pattern: phase5-review-shard-*-${{ github.run_id }}
           path: benchmark/results/phase5/review-collected
           merge-multiple: true
-      - name: Aggregate and validate all 12 cases
+      - name: Aggregate and require all 12 scored cases
         run: |
           mkdir -p benchmark/results/phase5/driftdoctor-review-final
           python scripts/aggregate_phase5.py \
@@ -96,13 +113,13 @@ jobs:
             --input-root benchmark/results/phase5/review-collected \
             --output benchmark/results/phase5/driftdoctor-review-final/summary.json \
             --transport-timeout-seconds 1200 \
-            --execution-mode distributed-case-matrix
+            --execution-mode three-shard-warm-model
           cp benchmark/results/phase5/review-collected/DD-*.json benchmark/results/phase5/driftdoctor-review-final/
       - name: Upload complete semantic-review evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: phase5-driftdoctor-review-complete-qwen2.5-coder-1.5b
+          name: phase5-driftdoctor-review-complete-qwen2.5-coder-1.5b-${{ github.run_id }}
           path: benchmark/results/phase5/driftdoctor-review-final/
           if-no-files-found: error
           retention-days: 30
