@@ -42,10 +42,12 @@ def _quoted_identifiers(text: str) -> list[str]:
 
 
 def _declared_contract_fields(context: str) -> list[str]:
+    """Return only explicit public output-field declarations, not grain clauses."""
     fields: list[str] = []
     for sentence in re.split(r"(?<=[.!?])\s+|\n+", context):
         lower = sentence.lower()
-        if "contract" not in lower and "must expose" not in lower:
+        declares_public_fields = ("public" in lower and "contract" in lower) or "must expose" in lower
+        if not declares_public_fields:
             continue
         for identifier in _quoted_identifiers(sentence):
             lowered = identifier.lower()
@@ -100,11 +102,9 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
     headers = _input_headers(root)
     concerns: list[str] = []
 
-    # Safe numeric conversion contract.
     if "numeric" in ctx and "invalid" in ctx and "null" in ctx and "try_cast" not in code:
         concerns.append("Documented invalid-numeric-to-NULL handling is not visible in current SQL.")
 
-    # Explicit derived-field contracts.
     derived_outputs: set[str] = set()
     for output, first, last in _derived_rules(context):
         derived_outputs.add(output)
@@ -114,7 +114,6 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
                 f"Documented derived field {output} is not visibly produced from {first} and {last} with trimming."
             )
 
-    # Required identifier rejection rules.
     required_match = re.search(rf"`({IDENTIFIER})`\s+is\s+required", context, flags=re.IGNORECASE)
     if required_match and "whitespace" in ctx and "must be excluded" in ctx:
         identifier = required_match.group(1).lower()
@@ -123,7 +122,6 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
         if not (has_trim and has_rejection):
             concerns.append(f"Required identifier {identifier} is not visibly filtering NULL/blank/whitespace rows.")
 
-    # Categorical mapping plus validation.
     pairs = _mapping_pairs(context)
     if len(pairs) >= 2:
         for src, dst in pairs:
@@ -134,7 +132,6 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
             if missing:
                 concerns.append("accepted_values validation is missing documented outputs: " + ", ".join(missing))
 
-    # Macro keyword interface derived from the contract.
     keyword_match = re.search(rf"keyword\s+argument\s+`({IDENTIFIER})`", context, flags=re.IGNORECASE)
     if keyword_match:
         keyword = keyword_match.group(1).lower()
@@ -142,7 +139,6 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
         if value_match and re.search(rf"\b{re.escape(keyword)}\s*=\s*{re.escape(value_match.group(1))}\b", code) is None:
             concerns.append(f"Documented macro keyword {keyword}={value_match.group(1)} is not visible at a call site.")
 
-    # Latest-record / SCD recency contracts.
     greatest = re.search(rf"greatest\s+`({IDENTIFIER})`", context, flags=re.IGNORECASE)
     if greatest:
         order_field = greatest.group(1).lower()
@@ -151,7 +147,6 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
         if needs_latest and (order_field not in code or not latest_operator):
             concerns.append(f"Documented greatest-{order_field} record selection is not visible in current SQL.")
 
-    # Timezone conversion contract.
     zone = _iana_zone(context)
     if zone and "source timestamps are utc" in ctx:
         has_zone = zone in code
@@ -159,7 +154,6 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
         if not (has_zone and has_utc):
             concerns.append(f"Documented UTC-to-{zone} conversion is not visible before reporting-date logic.")
 
-    # Business formula contract.
     formula = _formula(context)
     if formula:
         result, positive, negative = formula
@@ -167,8 +161,6 @@ def semantic_concerns(root: Path, context: str) -> list[str]:
         if expression is None or "-" not in expression.group(1):
             concerns.append(f"Documented formula {result} = {positive} - {negative} is not visible in the output expression.")
 
-    # Stable public fields that disappeared from raw input should be explicitly aliased
-    # or derived. This is intentionally based only on current source headers + context.
     for field in _declared_contract_fields(context):
         if field in headers or field in derived_outputs:
             continue
