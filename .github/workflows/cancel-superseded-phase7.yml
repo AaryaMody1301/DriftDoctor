@@ -1,9 +1,7 @@
 name: cancel-superseded-phase7
 
 on:
-  push:
-    branches:
-      - phase-8-hybrid-repair-skills
+  workflow_dispatch:
 
 permissions:
   actions: write
